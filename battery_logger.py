@@ -202,7 +202,7 @@ def append_to_csv(log_file: Path, date_value: datetime, capacity_percent: float,
         writer = csv.writer(f)
         if not file_exists:
             writer.writerow(CSV_COLUMNS)
-        writer.writerow([date_value.strftime("%Y-%m-%d"), f"{capacity_percent:.2f}", source])
+        writer.writerow([date_value.strftime("%Y-%m-%d %H:%M:%S"), f"{capacity_percent:.2f}", source])
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -239,7 +239,7 @@ def main(argv: list[str]) -> int:
         append_to_csv(args.output, timestamp, capacity_percent, source)
         print(
             "Logged battery sample: "
-            f"date={timestamp.strftime('%Y-%m-%d')} "
+            f"date={timestamp.strftime('%Y-%m-%d %H:%M:%S')} "
             f"capacity_percent={capacity_percent:.2f} source={source} "
             f"output={args.output}"
         )

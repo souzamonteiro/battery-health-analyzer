@@ -176,10 +176,7 @@ class BatteryAnalyzer:
 
         # Keep realistic values and avoid impossible percentages.
         normalized = normalized[(normalized["capacity_percent"] > 0) & (normalized["capacity_percent"] <= 120)]
-        normalized = normalized.sort_values("date").drop_duplicates(subset=["date"], keep="last")
-
-        if len(normalized) < 4:
-            raise ValueError("At least 4 valid records are required for forecasting.")
+        normalized = normalized.sort_values("date")
 
         return normalized[["date", "capacity_percent"]].reset_index(drop=True)
 
@@ -251,12 +248,27 @@ class BatteryAnalyzer:
 
     def train_model(self) -> bool:
         """Train robust linear trend model for long-range extrapolation."""
-        if self.df is None or len(self.df) < 4:
-            messagebox.showerror("Model Error", "Insufficient data. At least 4 records are required.")
+        if self.df is None:
+            messagebox.showerror("Model Error", "No data loaded.")
+            return False
+
+        if len(self.df) < 4:
+            messagebox.showerror(
+                "Model Error",
+                f"Insufficient data. Found {len(self.df)} valid records; at least 4 are required.",
+            )
             return False
 
         self.base_date = self.df["date"].min().to_pydatetime()
-        x = (self.df["date"] - self.base_date).dt.days.to_numpy().reshape(-1, 1)
+        elapsed_days = (self.df["date"] - self.base_date).dt.total_seconds() / 86400.0
+        if elapsed_days.nunique() < 2:
+            messagebox.showerror(
+                "Model Error",
+                "Insufficient time span. Need records with at least 2 different timestamps.",
+            )
+            return False
+
+        x = elapsed_days.to_numpy().reshape(-1, 1)
         y = self.df["capacity_percent"].to_numpy()
 
         self.model = TheilSenRegressor(random_state=42)
@@ -287,7 +299,7 @@ class BatteryAnalyzer:
         if self.model is None or self.df is None or self.base_date is None:
             return "Model quality not available."
 
-        x = (self.df["date"] - self.base_date).dt.days.to_numpy().reshape(-1, 1)
+        x = ((self.df["date"] - self.base_date).dt.total_seconds() / 86400.0).to_numpy().reshape(-1, 1)
         y = self.df["capacity_percent"].to_numpy()
         r2 = float(self.model.score(x, y))
         slope = float(self.model.coef_[0])

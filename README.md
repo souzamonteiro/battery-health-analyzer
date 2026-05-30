@@ -123,7 +123,7 @@ python3 battery_logger.py --loop --interval-seconds 60
 Stop with `Ctrl+C`.
 
 Logger CSV schema:
-- `date`: ISO date (`YYYY-MM-DD`)
+- `date`: ISO date/time (`YYYY-MM-DD HH:MM:SS`) or date (`YYYY-MM-DD`)
 - `capacity_percent`: measured percentage value
 - `source`: data origin (`*_health` or `*_charge_fallback`)
 
