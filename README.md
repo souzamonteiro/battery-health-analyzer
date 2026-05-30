@@ -114,6 +114,14 @@ Optional custom output path:
 python3 battery_logger.py --output ./my_battery_history.csv
 ```
 
+Loop mode (collect continuously until process is stopped):
+
+```bash
+python3 battery_logger.py --loop --interval-seconds 60
+```
+
+Stop with `Ctrl+C`.
+
 Logger CSV schema:
 - `date`: ISO date (`YYYY-MM-DD`)
 - `capacity_percent`: measured percentage value

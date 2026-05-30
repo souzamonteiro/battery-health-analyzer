@@ -22,6 +22,7 @@ import json
 import os
 import platform
 import re
+import time
 import subprocess
 import sys
 from datetime import datetime
@@ -140,14 +141,23 @@ def _powershell_json(command: str) -> list[dict]:
 
 def _windows_capacity_percent() -> Tuple[float, str]:
     """Return battery health on Windows using CIM battery classes."""
-    full_entries = _powershell_json(
-        "Get-CimInstance -Namespace root\\wmi -ClassName BatteryFullChargedCapacity "
-        "| Select-Object FullChargedCapacity | ConvertTo-Json"
-    )
-    design_entries = _powershell_json(
-        "Get-CimInstance -Namespace root\\wmi -ClassName BatteryStaticData "
-        "| Select-Object DesignedCapacity | ConvertTo-Json"
-    )
+    # Some Windows devices do not expose one or both health classes.
+    # In that case, continue to charge-percentage fallback.
+    try:
+        full_entries = _powershell_json(
+            "Get-CimInstance -Namespace root\\wmi -ClassName BatteryFullChargedCapacity "
+            "| Select-Object FullChargedCapacity | ConvertTo-Json"
+        )
+    except BatteryReadError:
+        full_entries = []
+
+    try:
+        design_entries = _powershell_json(
+            "Get-CimInstance -Namespace root\\wmi -ClassName BatteryStaticData "
+            "| Select-Object DesignedCapacity | ConvertTo-Json"
+        )
+    except BatteryReadError:
+        design_entries = []
 
     if full_entries and design_entries:
         full = float(full_entries[0].get("FullChargedCapacity", 0) or 0)
@@ -203,28 +213,58 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_LOG_FILE,
         help=f"Output CSV path (default: {DEFAULT_LOG_FILE})",
     )
+    parser.add_argument(
+        "--loop",
+        action="store_true",
+        help="Keep collecting samples in a loop until interrupted (Ctrl+C).",
+    )
+    parser.add_argument(
+        "--interval-seconds",
+        type=float,
+        default=60.0,
+        help="Seconds between samples when --loop is enabled (default: 60).",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    if args.interval_seconds <= 0:
+        print("Invalid --interval-seconds: value must be greater than zero.", file=sys.stderr)
+        return 2
+
+    def log_sample() -> None:
+        capacity_percent, source = get_battery_capacity_percent()
+        timestamp = datetime.now()
+        append_to_csv(args.output, timestamp, capacity_percent, source)
+        print(
+            "Logged battery sample: "
+            f"date={timestamp.strftime('%Y-%m-%d')} "
+            f"capacity_percent={capacity_percent:.2f} source={source} "
+            f"output={args.output}"
+        )
 
     try:
-        capacity_percent, source = get_battery_capacity_percent()
-        append_to_csv(args.output, datetime.now(), capacity_percent, source)
+        if args.loop:
+            print(
+                "Loop mode enabled. "
+                f"Collecting every {args.interval_seconds:g}s. Press Ctrl+C to stop."
+            )
+            while True:
+                log_sample()
+                time.sleep(args.interval_seconds)
+        else:
+            log_sample()
     except BatteryReadError as exc:
         print(f"Battery read failed: {exc}", file=sys.stderr)
         return 1
     except OSError as exc:
         print(f"Failed to write CSV file: {exc}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("Stopped by user.")
+        return 0
 
-    print(
-        "Logged battery sample: "
-        f"date={datetime.now().strftime('%Y-%m-%d')} "
-        f"capacity_percent={capacity_percent:.2f} source={source} "
-        f"output={args.output}"
-    )
     return 0
 
 
