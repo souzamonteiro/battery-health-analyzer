@@ -88,6 +88,33 @@ Behavior:
 - Windows shell (`MINGW/MSYS/CYGWIN`): installs with `pip`.
 - Other Linux distributions: creates `.venv` and installs with `pip` inside the virtual environment.
 
+## Automation
+
+This repository now includes per-OS automation scripts under [`scripts/`](scripts) to keep logging running while the machine is on and to open the analyzer with the default history file.
+
+Logger service installers:
+- Linux: [`scripts/install_automation_linux.sh`](scripts/install_automation_linux.sh)
+- macOS: [`scripts/install_automation_macos.sh`](scripts/install_automation_macos.sh)
+- Windows: [`scripts/install_automation_windows.ps1`](scripts/install_automation_windows.ps1)
+
+These installers configure the logger to run continuously with `--loop` and write to the default CSV file next to the project.
+
+Analyzer launchers that open the default history file:
+- Linux/macOS shell launcher: [`scripts/open_battery_health_analyzer.sh`](scripts/open_battery_health_analyzer.sh)
+- macOS double-click launcher: [`scripts/open_battery_health_analyzer.command`](scripts/open_battery_health_analyzer.command)
+- Windows launcher: [`scripts/open_battery_health_analyzer.cmd`](scripts/open_battery_health_analyzer.cmd)
+
+Icon asset:
+- [`assets/battery-health-analyzer.svg`](assets/battery-health-analyzer.svg) is the shared source icon for the launchers and future packaging.
+
+The analyzer also accepts a history CSV path directly:
+
+```bash
+python3 battery_health_analyzer.py battery_history.csv
+```
+
+If no file is passed, it behaves as before and opens the empty GUI.
+
 ## Usage
 
 ### 1) Launch GUI analyzer

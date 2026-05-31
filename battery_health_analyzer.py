@@ -26,9 +26,12 @@ End of life is defined as the first date where predicted health is <= threshold
 
 from __future__ import annotations
 
+import argparse
 import tkinter as tk
 from datetime import datetime, timedelta
 from tkinter import filedialog, messagebox, ttk
+from pathlib import Path
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,10 +42,24 @@ from sklearn.linear_model import TheilSenRegressor
 from battery_logger import BatteryReadError, get_battery_capacity_percent
 
 
+DEFAULT_HISTORY_FILE = Path(__file__).resolve().parent / "battery_history.csv"
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Battery Health Analyzer GUI")
+    parser.add_argument(
+        "history_path",
+        nargs="?",
+        type=Path,
+        help=f"Optional battery history CSV to load and plot on startup (default logger output: {DEFAULT_HISTORY_FILE}).",
+    )
+    return parser.parse_args(argv)
+
+
 class BatteryAnalyzer:
     """Interactive battery degradation analyzer and end-of-life forecaster."""
 
-    def __init__(self, root: tk.Tk):
+    def __init__(self, root: tk.Tk, startup_history_path: Path | None = None):
         self.root = root
         self.root.title("Battery Health Analyzer")
         self.root.geometry("980x740")
@@ -56,6 +73,9 @@ class BatteryAnalyzer:
         self._build_layout()
         self._refresh_current_battery_status()
         self._apply_initial_window_size()
+
+        if startup_history_path is not None:
+            self.root.after(0, lambda: self.open_history_and_plot(startup_history_path))
 
     def _build_layout(self) -> None:
         self.root.rowconfigure(0, weight=1)
@@ -189,6 +209,10 @@ class BatteryAnalyzer:
         if not file_path:
             return
 
+        self.load_csv_from_path(Path(file_path))
+
+    def load_csv_from_path(self, file_path: Path) -> bool:
+        """Load a CSV file from a known path into memory."""
         try:
             raw = pd.read_csv(file_path)
             self.df = self._normalize_columns(raw)
@@ -199,8 +223,15 @@ class BatteryAnalyzer:
                 )
             )
             messagebox.showinfo("Success", f"Loaded {len(self.df)} valid records.")
+            return True
         except Exception as exc:
             messagebox.showerror("Load Error", f"Failed to load CSV:\n{exc}")
+            return False
+
+    def open_history_and_plot(self, file_path: Path) -> None:
+        """Load a CSV path and immediately run the forecast plot."""
+        if self.load_csv_from_path(file_path):
+            self.plot_and_predict()
 
     def capture_current(self) -> None:
         """Append one current battery sample to the in-memory history."""
@@ -396,6 +427,7 @@ class BatteryAnalyzer:
 
 
 if __name__ == "__main__":
+    args = parse_args(sys.argv[1:])
     root = tk.Tk()
-    app = BatteryAnalyzer(root)
+    app = BatteryAnalyzer(root, startup_history_path=args.history_path)
     root.mainloop()
