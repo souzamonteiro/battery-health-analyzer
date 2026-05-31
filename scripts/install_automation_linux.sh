@@ -11,6 +11,7 @@ SERVICE_FILE="/etc/systemd/system/battery-health-analyzer-logger.service"
 LOGGER_WRAPPER="$SCRIPT_DIR/run_battery_logger.sh"
 ANALYZER_WRAPPER="$SCRIPT_DIR/open_battery_health_analyzer.sh"
 ICON_FILE="$PROJECT_DIR/assets/battery-health-analyzer.svg"
+METRIC_MODE="${BATTERY_LOGGER_METRIC:-health}"
 
 if ! command -v systemctl >/dev/null 2>&1; then
 	echo "systemd/systemctl was not found. This installer expects a systemd-based Linux distribution."
@@ -60,6 +61,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=$USER_NAME
+Environment=BATTERY_LOGGER_METRIC=$METRIC_MODE
 WorkingDirectory=$PROJECT_DIR
 ExecStart=$LOGGER_WRAPPER
 Restart=always
@@ -73,5 +75,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now battery-health-analyzer-logger.service
 
 echo "Installed logger service: battery-health-analyzer-logger.service"
+echo "Logger metric mode: $METRIC_MODE"
 echo "Installed analyzer launcher: $APP_FILE"
 echo "Optional desktop shortcut: $DESKTOP_FILE"

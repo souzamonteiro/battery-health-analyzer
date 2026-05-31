@@ -4,13 +4,12 @@
 The script appends one record to a CSV file using this schema:
     date,capacity_percent,source
 
-`capacity_percent` represents battery health whenever possible:
-- Linux: energy_full / energy_full_design from /sys/class/power_supply
-- macOS: Full Charge Capacity / Design Capacity from system_profiler
-- Windows: FullChargedCapacity / DesignedCapacity from CIM classes
+`capacity_percent` can represent either:
+- Battery health (default mode `--metric health`, recommended for forecast)
+- Current charge level (`--metric charge`)
 
-If health data is unavailable, the script falls back to charge percentage
-(e.g., from pmset or Win32_Battery) and marks the data source accordingly.
+When the selected metric is unavailable on the host, the script applies
+cross-metric fallback and marks the data source accordingly.
 """
 
 from __future__ import annotations
@@ -27,10 +26,11 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 CSV_COLUMNS = ["date", "capacity_percent", "source"]
 DEFAULT_LOG_FILE = Path(__file__).resolve().parent / "battery_history.csv"
+MetricMode = Literal["health", "charge"]
 
 
 class BatteryReadError(RuntimeError):
@@ -56,17 +56,39 @@ def _run_command(command: list[str]) -> str:
     return result.stdout
 
 
-def _linux_capacity_percent() -> Tuple[float, str]:
-    """Return battery health percent from Linux sysfs."""
+def _linux_battery_path() -> str:
+    """Return first Linux battery sysfs path."""
     battery_paths = glob.glob("/sys/class/power_supply/BAT*")
     if not battery_paths:
         raise BatteryReadError("No battery entries found under /sys/class/power_supply/BAT*")
+    return battery_paths[0]
 
-    bat_path = battery_paths[0]
+
+def _linux_charge_percent(bat_path: str) -> Tuple[float, str]:
+    """Return current Linux battery charge percentage."""
+    capacity_path = os.path.join(bat_path, "capacity")
+    if not os.path.exists(capacity_path):
+        raise BatteryReadError("Linux battery capacity file was not found")
+
+    try:
+        with open(capacity_path, "r", encoding="utf-8") as f:
+            capacity = float(f.read().strip())
+    except OSError as exc:
+        raise BatteryReadError(f"Failed to read Linux battery capacity: {exc}") from exc
+
+    if 0 <= capacity <= 100:
+        return capacity, "linux_sysfs_charge"
+
+    raise BatteryReadError("Invalid battery capacity value read from Linux sysfs")
+
+
+def _linux_health_percent(bat_path: str) -> Tuple[float, str]:
+    """Return Linux battery health percentage (full/design)."""
+
     energy_full_path = os.path.join(bat_path, "energy_full")
     energy_design_path = os.path.join(bat_path, "energy_full_design")
 
-    # Some systems expose charge_* instead of energy_*.
+    # Some systems expose charge_* totals instead of energy_* totals.
     if not os.path.exists(energy_full_path) or not os.path.exists(energy_design_path):
         energy_full_path = os.path.join(bat_path, "charge_full")
         energy_design_path = os.path.join(bat_path, "charge_full_design")
@@ -83,6 +105,24 @@ def _linux_capacity_percent() -> Tuple[float, str]:
         raise BatteryReadError("Invalid design capacity reported by Linux battery interface")
 
     return (full / design) * 100.0, "linux_sysfs_health"
+
+
+def _linux_capacity_percent(metric: MetricMode) -> Tuple[float, str]:
+    """Return Linux battery metric according to selected mode."""
+    bat_path = _linux_battery_path()
+
+    if metric == "charge":
+        try:
+            return _linux_charge_percent(bat_path)
+        except BatteryReadError:
+            health_percent, _ = _linux_health_percent(bat_path)
+            return health_percent, "linux_sysfs_health_fallback"
+
+    try:
+        return _linux_health_percent(bat_path)
+    except BatteryReadError:
+        charge_percent, _ = _linux_charge_percent(bat_path)
+        return charge_percent, "linux_sysfs_charge_fallback"
 
 
 def _parse_macos_capacity_from_system_profiler(raw: str) -> Optional[Tuple[float, str]]:
@@ -103,23 +143,40 @@ def _parse_macos_capacity_from_system_profiler(raw: str) -> Optional[Tuple[float
     return (full / design) * 100.0, "macos_system_profiler_health"
 
 
-def _macos_capacity_percent() -> Tuple[float, str]:
-    """Return battery health on macOS; fallback to charge percentage if needed."""
-    try:
-        profiler_raw = _run_command(["system_profiler", "SPPowerDataType"])
-        parsed = _parse_macos_capacity_from_system_profiler(profiler_raw)
-        if parsed is not None:
-            return parsed
-    except BatteryReadError:
-        pass
+def _macos_health_percent() -> Tuple[float, str]:
+    """Return battery health on macOS from system_profiler."""
+    profiler_raw = _run_command(["system_profiler", "SPPowerDataType"])
+    parsed = _parse_macos_capacity_from_system_profiler(profiler_raw)
+    if parsed is None:
+        raise BatteryReadError("Unable to parse macOS battery health from system_profiler output")
+    return parsed
 
-    # Fallback: current charge level from pmset (not health).
+
+def _macos_charge_percent() -> Tuple[float, str]:
+    """Return current battery charge percentage on macOS."""
+    # pmset returns current charge percentage (not battery health).
     pmset_raw = _run_command(["pmset", "-g", "batt"])
     charge_match = re.search(r"(\d+)%", pmset_raw)
     if not charge_match:
         raise BatteryReadError("Unable to parse battery percentage from pmset output")
 
-    return float(charge_match.group(1)), "macos_pmset_charge_fallback"
+    return float(charge_match.group(1)), "macos_pmset_charge"
+
+
+def _macos_capacity_percent(metric: MetricMode) -> Tuple[float, str]:
+    """Return macOS battery metric according to selected mode."""
+    if metric == "charge":
+        try:
+            return _macos_charge_percent()
+        except BatteryReadError:
+            health_percent, _ = _macos_health_percent()
+            return health_percent, "macos_system_profiler_health_fallback"
+
+    try:
+        return _macos_health_percent()
+    except BatteryReadError:
+        charge_percent, _ = _macos_charge_percent()
+        return charge_percent, "macos_pmset_charge_fallback"
 
 
 def _powershell_json(command: str) -> list[dict]:
@@ -139,10 +196,8 @@ def _powershell_json(command: str) -> list[dict]:
     return []
 
 
-def _windows_capacity_percent() -> Tuple[float, str]:
+def _windows_health_percent() -> Tuple[float, str]:
     """Return battery health on Windows using CIM battery classes."""
-    # Some Windows devices do not expose one or both health classes.
-    # In that case, continue to charge-percentage fallback.
     try:
         full_entries = _powershell_json(
             "Get-CimInstance -Namespace root\\wmi -ClassName BatteryFullChargedCapacity "
@@ -165,7 +220,12 @@ def _windows_capacity_percent() -> Tuple[float, str]:
         if design > 0:
             return (full / design) * 100.0, "windows_cim_health"
 
-    # Fallback to current charge percentage.
+    raise BatteryReadError("Windows battery health classes are unavailable")
+
+
+def _windows_charge_percent() -> Tuple[float, str]:
+    """Return current battery charge percentage on Windows."""
+
     charge_entries = _powershell_json(
         "Get-CimInstance -ClassName Win32_Battery "
         "| Select-Object EstimatedChargeRemaining | ConvertTo-Json"
@@ -177,18 +237,38 @@ def _windows_capacity_percent() -> Tuple[float, str]:
     if charge <= 0:
         raise BatteryReadError("Windows battery charge percentage is unavailable")
 
-    return charge, "windows_win32_charge_fallback"
+    return charge, "windows_win32_charge"
 
 
-def get_battery_capacity_percent() -> Tuple[float, str]:
+def _windows_capacity_percent(metric: MetricMode) -> Tuple[float, str]:
+    """Return Windows battery metric according to selected mode."""
+    if metric == "charge":
+        try:
+            return _windows_charge_percent()
+        except BatteryReadError:
+            health_percent, _ = _windows_health_percent()
+            return health_percent, "windows_cim_health_fallback"
+
+    try:
+        return _windows_health_percent()
+    except BatteryReadError:
+        charge_percent, _ = _windows_charge_percent()
+        return charge_percent, "windows_win32_charge_fallback"
+
+
+def get_battery_capacity_percent(metric: MetricMode = "health") -> Tuple[float, str]:
     """Dispatch battery collection by OS and return (percent, source)."""
     system = platform.system().lower()
+
+    if metric not in ("health", "charge"):
+        raise BatteryReadError(f"Unsupported metric mode: {metric}")
+
     if system == "linux":
-        return _linux_capacity_percent()
+        return _linux_capacity_percent(metric)
     if system == "darwin":
-        return _macos_capacity_percent()
+        return _macos_capacity_percent(metric)
     if system == "windows":
-        return _windows_capacity_percent()
+        return _windows_capacity_percent(metric)
 
     raise BatteryReadError(f"Unsupported operating system: {platform.system()}")
 
@@ -206,6 +286,10 @@ def append_to_csv(log_file: Path, date_value: datetime, capacity_percent: float,
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
+    default_metric = os.environ.get("BATTERY_LOGGER_METRIC", "health").strip().lower() or "health"
+    if default_metric not in ("health", "charge"):
+        default_metric = "health"
+
     parser = argparse.ArgumentParser(description="Append one battery sample to CSV history.")
     parser.add_argument(
         "--output",
@@ -224,6 +308,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=60.0,
         help="Seconds between samples when --loop is enabled (default: 60).",
     )
+    parser.add_argument(
+        "--metric",
+        choices=["health", "charge"],
+        default=default_metric,
+        help=(
+            "Metric to log: health (best for lifetime forecast) or charge "
+            "(current battery level). Can also be set by BATTERY_LOGGER_METRIC."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -234,7 +327,7 @@ def main(argv: list[str]) -> int:
         return 2
 
     def log_sample() -> None:
-        capacity_percent, source = get_battery_capacity_percent()
+        capacity_percent, source = get_battery_capacity_percent(metric=args.metric)
         timestamp = datetime.now()
         append_to_csv(args.output, timestamp, capacity_percent, source)
         print(
@@ -248,7 +341,7 @@ def main(argv: list[str]) -> int:
         if args.loop:
             print(
                 "Loop mode enabled. "
-                f"Collecting every {args.interval_seconds:g}s. Press Ctrl+C to stop."
+                f"Collecting every {args.interval_seconds:g}s with metric={args.metric}. Press Ctrl+C to stop."
             )
             while True:
                 log_sample()

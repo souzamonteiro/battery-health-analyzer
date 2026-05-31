@@ -60,17 +60,25 @@ The 80% threshold is a common operational recommendation for replacement plannin
 
 ## Battery Data Sources by OS
 
-`battery_logger.py` prioritizes health-capacity sources and uses fallback charge-level sources when needed.
+`battery_logger.py` supports two metric modes:
+
+- `health` (default): best for degradation forecast in the analyzer.
+- `charge`: current battery level (can vary frequently and is not ideal for end-of-life prediction).
+
+In `health` mode, the logger uses health-capacity sources when available and falls back to charge-level sources when needed.
 
 - Linux
-: `/sys/class/power_supply/BAT*` (`energy_full`/`energy_full_design`, or `charge_*` fallback).
+: `health` mode reads health ratio from `energy_full`/`energy_full_design` (or `charge_*` health files), with fallback to `/sys/class/power_supply/BAT*/capacity`.
+`charge` mode reads `/sys/class/power_supply/BAT*/capacity`, with fallback to health ratio.
 - macOS
-: `system_profiler SPPowerDataType` for full/design capacity ratio.
+: `health` mode uses `system_profiler SPPowerDataType` for full/design capacity ratio.
 Fallback: `pmset -g batt` charge percentage.
+`charge` mode uses `pmset -g batt` first.
 - Windows
-: PowerShell CIM classes:
+: `health` mode uses PowerShell CIM classes:
 `BatteryFullChargedCapacity` + `BatteryStaticData` for health ratio.
 Fallback: `Win32_Battery` charge percentage.
+`charge` mode uses `Win32_Battery` first.
 
 The `source` column in logger output indicates whether the measurement is true health or fallback charge data.
 
@@ -98,6 +106,8 @@ Logger service installers:
 - Windows: [`scripts/install_automation_windows.ps1`](scripts/install_automation_windows.ps1)
 
 These installers configure the logger to run continuously with `--loop` and write to the default CSV file next to the project.
+By default they run with `health` metric mode for forecast compatibility.
+You can change mode at install time by exporting `BATTERY_LOGGER_METRIC=charge` before running the installer.
 
 Analyzer launchers that open the default history file:
 - Linux/macOS shell launcher: [`scripts/open_battery_health_analyzer.sh`](scripts/open_battery_health_analyzer.sh)
@@ -147,12 +157,22 @@ Loop mode (collect continuously until process is stopped):
 python3 battery_logger.py --loop --interval-seconds 60
 ```
 
+Select metric mode explicitly:
+
+```bash
+python3 battery_logger.py --metric health
+python3 battery_logger.py --metric charge
+```
+
+The wrappers also support `BATTERY_LOGGER_METRIC` (`health` or `charge`).
+Keep `health` for datasets intended for `battery_health_analyzer.py` forecast.
+
 Stop with `Ctrl+C`.
 
 Logger CSV schema:
 - `date`: ISO date/time (`YYYY-MM-DD HH:MM:SS`) or date (`YYYY-MM-DD`)
 - `capacity_percent`: measured percentage value
-- `source`: data origin (`*_health` or `*_charge_fallback`)
+- `source`: data origin (for example `*_health`, `*_charge`, or fallback variants)
 
 ## Sample Dataset Validation (`bateria_teste.csv`)
 

@@ -5,9 +5,12 @@ $projectDir = (Resolve-Path (Join-Path $scriptDir '..')).Path
 $historyFile = Join-Path $projectDir 'battery_history.csv'
 $loggerScript = Join-Path $projectDir 'battery_logger.py'
 $analyzerScript = Join-Path $projectDir 'battery_health_analyzer.py'
-$loggerWrapper = Join-Path $scriptDir 'run_battery_logger.cmd'
 $analyzerWrapper = Join-Path $scriptDir 'open_battery_health_analyzer.cmd'
 $taskName = 'BatteryHealthAnalyzerLogger'
+$metricMode = if ($env:BATTERY_LOGGER_METRIC) { $env:BATTERY_LOGGER_METRIC.ToLowerInvariant() } else { 'health' }
+if ($metricMode -notin @('health', 'charge')) {
+	$metricMode = 'health'
+}
 
 
 function Test-Administrator {
@@ -45,10 +48,6 @@ if (-not $guiPythonExe) {
 	$guiPythonExe = $loggerPythonExe
 }
 
-if (-not (Test-Path $loggerWrapper)) {
-	throw "Missing wrapper: $loggerWrapper"
-}
-
 if (-not (Test-Path $analyzerWrapper)) {
 	throw "Missing wrapper: $analyzerWrapper"
 }
@@ -68,30 +67,43 @@ if (-not [string]::IsNullOrWhiteSpace($desktopPath)) {
 	$shortcut.Save()
 }
 
-$action = New-ScheduledTaskAction -Execute $loggerPythonExe -Argument "`"$loggerScript`" --loop --interval-seconds 60 --output `"$historyFile`"" -WorkingDirectory $projectDir
+$action = New-ScheduledTaskAction -Execute $loggerPythonExe -Argument "`"$loggerScript`" --loop --interval-seconds 60 --metric $metricMode --output `"$historyFile`"" -WorkingDirectory $projectDir
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+
+if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+	Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+}
 
 if ($isElevated) {
 	$trigger = New-ScheduledTaskTrigger -AtStartup
 	$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
-    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
-
-	if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
-		Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-	}
 
 	Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description 'Battery Health Analyzer logger'
 
 	Write-Host "Installed scheduled task: $taskName"
 } else {
+	$currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+	$trigger = New-ScheduledTaskTrigger -AtLogOn -User $currentUser
+	$principal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive -RunLevel Limited
+
+	Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description 'Battery Health Analyzer logger (user logon)'
+
 	$startupDir = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
 	$startupLauncher = Join-Path $startupDir 'Battery Health Analyzer Logger.cmd'
-	$startupContent = @"
-@echo off
-start "" /min cmd.exe /c """$loggerWrapper"" ""$historyFile"""
-exit /b 0
-"@
-	Set-Content -Path $startupLauncher -Value $startupContent -Encoding ASCII
-	Write-Host "Installed startup launcher: $startupLauncher"
+	if (Test-Path $startupLauncher) {
+		Remove-Item $startupLauncher -Force
+		Write-Host "Removed legacy startup launcher: $startupLauncher"
+	}
+
+	Write-Host "Installed scheduled task: $taskName (trigger: user logon)"
 }
 
+try {
+	Start-ScheduledTask -TaskName $taskName
+	Write-Host "Started scheduled task now: $taskName"
+} catch {
+	Write-Warning "Task installed but could not be started immediately: $($_.Exception.Message)"
+}
+
+Write-Host "Logger metric mode: $metricMode"
 Write-Host "Installed desktop shortcut: Battery Health Analyzer.lnk"

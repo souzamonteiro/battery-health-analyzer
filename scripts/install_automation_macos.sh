@@ -7,6 +7,7 @@ PLIST_FILE="$HOME/Library/LaunchAgents/com.batteryhealth.logger.plist"
 DESKTOP_SHORTCUT="$HOME/Desktop/Battery Health Analyzer.command"
 LOGGER_WRAPPER="$SCRIPT_DIR/run_battery_logger.sh"
 ANALYZER_WRAPPER="$SCRIPT_DIR/open_battery_health_analyzer.command"
+METRIC_MODE="${BATTERY_LOGGER_METRIC:-health}"
 
 if command -v python3 >/dev/null 2>&1; then
 	PYTHON_BIN="$(command -v python3)"
@@ -34,6 +35,8 @@ cat > "$PLIST_FILE" <<EOF
 		<string>--loop</string>
 		<string>--interval-seconds</string>
 		<string>60</string>
+		<string>--metric</string>
+		<string>$METRIC_MODE</string>
 		<string>--output</string>
 		<string>$PROJECT_DIR/battery_history.csv</string>
 	</array>
@@ -59,4 +62,5 @@ launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
 launchctl kickstart -k "gui/$(id -u)/com.batteryhealth.logger"
 
 echo "Installed LaunchAgent: $PLIST_FILE"
+echo "Logger metric mode: $METRIC_MODE"
 echo "Desktop shortcut: $DESKTOP_SHORTCUT"
