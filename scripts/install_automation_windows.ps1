@@ -87,7 +87,8 @@ if ($isElevated) {
 	$startupLauncher = Join-Path $startupDir 'Battery Health Analyzer Logger.cmd'
 	$startupContent = @"
 @echo off
-start "" /min "$loggerWrapper" "$historyFile"
+start "" /min cmd.exe /c """$loggerWrapper"" ""$historyFile"""
+exit /b 0
 "@
 	Set-Content -Path $startupLauncher -Value $startupContent -Encoding ASCII
 	Write-Host "Installed startup launcher: $startupLauncher"
