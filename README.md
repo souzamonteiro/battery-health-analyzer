@@ -108,6 +108,16 @@ Logger service installers:
 These installers configure the logger to run continuously with `--loop` and write to the default CSV file next to the project.
 By default they run with `health` metric mode for forecast compatibility.
 You can change mode at install time by exporting `BATTERY_LOGGER_METRIC=charge` before running the installer.
+On Linux with `sudo`, prefer passing it explicitly so it is not stripped:
+
+```bash
+sudo ./scripts/install_automation_linux.sh --metric charge
+# or
+sudo BATTERY_LOGGER_METRIC=charge ./scripts/install_automation_linux.sh
+```
+
+If no metric is provided, the Linux installer now preserves the metric already configured in
+`battery-health-analyzer-logger.service` (instead of forcing `health`).
 
 Analyzer launchers that open the default history file:
 - Linux/macOS shell launcher: [`scripts/open_battery_health_analyzer.sh`](scripts/open_battery_health_analyzer.sh)
