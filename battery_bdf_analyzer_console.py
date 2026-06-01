@@ -83,6 +83,9 @@ def load_bdf(file_path: Path) -> pd.DataFrame:
     df["capacity_percent"] = pd.to_numeric(df["capacity_percent"], errors="coerce")
     df["temperature_celsius"] = pd.to_numeric(df["temperature_celsius"], errors="coerce")
 
+    # Treat non-finite values as missing before filtering rows.
+    df = df.replace([np.inf, -np.inf], np.nan)
+
     df = df.dropna(subset=["test_time_second", "voltage_volt", "current_ampere"]).copy()
     if df.empty:
         raise ValueError("No valid rows after numeric normalization")
@@ -118,11 +121,18 @@ def compute_soh(df: pd.DataFrame) -> np.ndarray:
 def fit_linear(time_sec: np.ndarray, soh: np.ndarray) -> tuple[LinearRegression, dict]:
     """Fit a linear SOH-vs-time model and return model plus quality metrics."""
     model = LinearRegression()
-    x = time_sec.reshape(-1, 1)
-    model.fit(x, soh)
-    pred = model.predict(x)
+    x = pd.to_numeric(pd.Series(time_sec), errors="coerce").replace([np.inf, -np.inf], np.nan)
+    y = pd.to_numeric(pd.Series(soh), errors="coerce").replace([np.inf, -np.inf], np.nan)
+    valid = x.notna() & y.notna()
+    if int(valid.sum()) < 2:
+        raise ValueError("Insufficient finite samples for linear fit")
+
+    x_fit = x[valid].to_numpy().reshape(-1, 1)
+    y_fit = y[valid].to_numpy()
+    model.fit(x_fit, y_fit)
+    pred = model.predict(x_fit)
     metrics = {
-        "r2": float(r2_score(soh, pred)),
+        "r2": float(r2_score(y_fit, pred)),
         "slope": float(model.coef_[0]),
         "intercept": float(model.intercept_),
     }
@@ -146,23 +156,100 @@ def estimate_rul_seconds(linear_model: LinearRegression, current_time: float, cu
 def fit_svr(df: pd.DataFrame, soh: np.ndarray) -> tuple[SVR, StandardScaler, dict, np.ndarray]:
     """Train an SVR model for SOH and return fitted artifacts and metrics."""
     features = df[["test_time_second", "voltage_volt", "current_ampere"]].copy()
+    features["test_time_second"] = pd.to_numeric(features["test_time_second"], errors="coerce")
+    features["voltage_volt"] = pd.to_numeric(features["voltage_volt"], errors="coerce")
+    features["current_ampere"] = pd.to_numeric(features["current_ampere"], errors="coerce")
+
     if "temperature_celsius" in df.columns:
-        features["temperature_celsius"] = df["temperature_celsius"].fillna(25.0)
+        features["temperature_celsius"] = pd.to_numeric(df["temperature_celsius"], errors="coerce")
     else:
         features["temperature_celsius"] = 25.0
+
+    features = features.replace([np.inf, -np.inf], np.nan)
+    features["test_time_second"] = features["test_time_second"].interpolate(limit_direction="both").fillna(0.0)
+    features["voltage_volt"] = features["voltage_volt"].ffill().bfill().fillna(3.7)
+    features["current_ampere"] = features["current_ampere"].ffill().bfill().fillna(0.0)
+    features["temperature_celsius"] = features["temperature_celsius"].ffill().bfill().fillna(25.0)
+
+    y = pd.to_numeric(pd.Series(soh), errors="coerce").replace([np.inf, -np.inf], np.nan)
+    y = y.ffill().bfill().fillna(100.0).to_numpy()
 
     scaler = StandardScaler()
     x_scaled = scaler.fit_transform(features)
 
     model = SVR(kernel="rbf", C=10.0, epsilon=0.01)
-    model.fit(x_scaled, soh)
+    model.fit(x_scaled, y)
     pred = model.predict(x_scaled)
 
     metrics = {
-        "r2": float(r2_score(soh, pred)),
-        "mae": float(mean_absolute_error(soh, pred)),
+        "r2": float(r2_score(y, pred)),
+        "mae": float(mean_absolute_error(y, pred)),
     }
     return model, scaler, metrics, pred
+
+
+def predict_future_svr(
+    df: pd.DataFrame,
+    model: SVR,
+    scaler: StandardScaler,
+    future_days: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Project future SOH using last known operating conditions and time progression."""
+    horizon_seconds = max(0.0, future_days * 86400.0)
+
+    features = df[["test_time_second", "voltage_volt", "current_ampere"]].copy()
+    features["test_time_second"] = pd.to_numeric(features["test_time_second"], errors="coerce")
+    features["voltage_volt"] = pd.to_numeric(features["voltage_volt"], errors="coerce")
+    features["current_ampere"] = pd.to_numeric(features["current_ampere"], errors="coerce")
+
+    if "temperature_celsius" in df.columns:
+        features["temperature_celsius"] = pd.to_numeric(df["temperature_celsius"], errors="coerce")
+    else:
+        features["temperature_celsius"] = 25.0
+
+    features = features.replace([np.inf, -np.inf], np.nan)
+    features["test_time_second"] = features["test_time_second"].interpolate(limit_direction="both").fillna(0.0)
+    features["voltage_volt"] = features["voltage_volt"].ffill().bfill().fillna(3.7)
+    features["current_ampere"] = features["current_ampere"].ffill().bfill().fillna(0.0)
+    features["temperature_celsius"] = features["temperature_celsius"].ffill().bfill().fillna(25.0)
+
+    last = features.iloc[-1]
+    last_time = float(last["test_time_second"])
+    future_times = np.linspace(last_time, last_time + horizon_seconds, num=100)
+
+    x_future = pd.DataFrame(
+        {
+            "test_time_second": future_times,
+            "voltage_volt": float(last["voltage_volt"]),
+            "current_ampere": float(last["current_ampere"]),
+            "temperature_celsius": float(last["temperature_celsius"]),
+        }
+    )
+
+    x_future_scaled = scaler.transform(x_future)
+    soh_future = model.predict(x_future_scaled)
+    return future_times, soh_future
+
+
+def estimate_svr_rul_seconds(
+    df: pd.DataFrame,
+    model: SVR,
+    scaler: StandardScaler,
+    eol_soh: float,
+    future_days: float,
+) -> float | None:
+    """Estimate SVR-based RUL by finding first forecast time crossing EOL SOH."""
+    future_times, soh_future = predict_future_svr(df, model, scaler, future_days)
+    if len(future_times) == 0:
+        return None
+
+    current_time = float(df["test_time_second"].iloc[-1])
+    below = np.where(soh_future <= eol_soh)[0]
+    if len(below) == 0:
+        return None
+
+    t_eol = float(future_times[below[0]])
+    return max(0.0, t_eol - current_time)
 
 
 def save_plots(df: pd.DataFrame, soh: np.ndarray, linear_model: LinearRegression, svr_pred: np.ndarray, output_dir: Path, eol_soh: float) -> list[Path]:
@@ -232,7 +319,7 @@ def format_duration(seconds: float) -> str:
     return f"{days:.1f} days"
 
 
-def run_analysis(input_file: Path, output_dir: Path, eol_soh: float) -> None:
+def run_analysis(input_file: Path, output_dir: Path, eol_soh: float, svr_days: float) -> None:
     """Run complete BDF analysis pipeline and print a console report."""
     df = load_bdf(input_file)
     soh = compute_soh(df)
@@ -245,7 +332,8 @@ def run_analysis(input_file: Path, output_dir: Path, eol_soh: float) -> None:
         eol_soh=eol_soh,
     )
 
-    _, _, svr_metrics, svr_pred = fit_svr(df, soh)
+    svr_model, svr_scaler, svr_metrics, svr_pred = fit_svr(df, soh)
+    svr_rul_seconds = estimate_svr_rul_seconds(df, svr_model, svr_scaler, eol_soh=eol_soh, future_days=svr_days)
     saved_plots = save_plots(df, soh, linear_model, svr_pred, output_dir, eol_soh)
 
     print("=" * 60)
@@ -270,6 +358,10 @@ def run_analysis(input_file: Path, output_dir: Path, eol_soh: float) -> None:
     print("SVR model")
     print(f"- R²: {svr_metrics['r2']:.4f}")
     print(f"- MAE: {svr_metrics['mae']:.4f}%")
+    if svr_rul_seconds is None:
+        print(f"- Estimated RUL to SOH {eol_soh:.0f}%: > {svr_days:.1f} days (within forecast horizon)")
+    else:
+        print(f"- Estimated RUL to SOH {eol_soh:.0f}%: {format_duration(svr_rul_seconds)}")
     print()
     print("Saved plots")
     for path in saved_plots:
@@ -283,6 +375,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("input_file", type=Path, help="Path to .csv or .bdf.csv file")
     parser.add_argument("--outdir", type=Path, default=Path("plots_bdf"), help="Directory to save PNG charts")
     parser.add_argument("--eol", type=float, default=70.0, help="End-of-life SOH threshold (default: 70)")
+    parser.add_argument("--svr-days", type=float, default=30.0, help="Future horizon in days for SVR EOL estimate (default: 30)")
     return parser.parse_args()
 
 
@@ -291,10 +384,13 @@ def main() -> int:
     signal.signal(signal.SIGINT, signal.default_int_handler)
     args = parse_args()
     try:
-        run_analysis(args.input_file, args.outdir, args.eol)
+        run_analysis(args.input_file, args.outdir, args.eol, args.svr_days)
     except KeyboardInterrupt:
         print("\nInterrupted by user (Ctrl+C).")
         return 130
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
     except BrokenPipeError:
         return 0
     return 0

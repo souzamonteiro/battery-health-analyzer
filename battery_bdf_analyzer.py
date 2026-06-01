@@ -217,10 +217,14 @@ class BatteryBDFAnalyzer:
         if self.svr_model is None or self.data.empty:
             return None, None
 
-        last_time = float(self.data["test_time_second"].iloc[-1])
+        features = self._get_svr_features()
+        if features.empty:
+            return None, None
+
+        last_time = float(features["test_time_second"].iloc[-1])
         future_times = np.linspace(last_time, last_time + future_seconds, num=100)
 
-        last_row = self.data.iloc[-1]
+        last_row = features.iloc[-1]
         x_future = pd.DataFrame(
             {
                 "test_time_second": future_times,
@@ -457,10 +461,23 @@ class BatteryBDFAnalyzer:
     def _get_svr_features(self) -> pd.DataFrame:
         """Build feature matrix for SVR from current data."""
         features = self.data[["test_time_second", "voltage_volt", "current_ampere"]].copy()
+
+        # Ensure numeric and finite values for all model features.
+        features["test_time_second"] = pd.to_numeric(features["test_time_second"], errors="coerce")
+        features["test_time_second"] = features["test_time_second"].interpolate(limit_direction="both").fillna(0.0)
+
+        features["voltage_volt"] = pd.to_numeric(features["voltage_volt"], errors="coerce")
+        features["voltage_volt"] = features["voltage_volt"].ffill().bfill().fillna(3.7)
+
+        features["current_ampere"] = pd.to_numeric(features["current_ampere"], errors="coerce")
+        features["current_ampere"] = features["current_ampere"].ffill().bfill().fillna(0.0)
+
         if "temperature_celsius" in self.data.columns:
             features["temperature_celsius"] = pd.to_numeric(self.data["temperature_celsius"], errors="coerce").fillna(25.0)
         else:
             features["temperature_celsius"] = 25.0
+
+        features["temperature_celsius"] = features["temperature_celsius"].ffill().bfill().fillna(25.0)
         return features
 
     def _open_file(self) -> None:
