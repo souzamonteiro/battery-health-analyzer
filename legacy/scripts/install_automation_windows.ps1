@@ -2,12 +2,15 @@ $ErrorActionPreference = 'Stop'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = (Resolve-Path (Join-Path $scriptDir '..')).Path
-$historyFile = Join-Path $projectDir 'battery_data.bdf.csv'
-$loggerScript = Join-Path $projectDir 'battery_bdf_collector.py'
-$analyzerScript = Join-Path $projectDir 'battery_bdf_analyzer.py'
+$historyFile = Join-Path $projectDir 'battery_history.csv'
+$loggerScript = Join-Path $projectDir 'battery_logger.py'
+$analyzerScript = Join-Path $projectDir 'battery_health_analyzer.py'
 $analyzerWrapper = Join-Path $scriptDir 'open_battery_health_analyzer.cmd'
 $taskName = 'BatteryHealthAnalyzerLogger'
-$metricMode = 'health'
+$metricMode = if ($env:BATTERY_LOGGER_METRIC) { $env:BATTERY_LOGGER_METRIC.ToLowerInvariant() } else { 'health' }
+if ($metricMode -notin @('health', 'charge')) {
+	$metricMode = 'health'
+}
 
 
 function Test-Administrator {
@@ -59,12 +62,12 @@ if (-not [string]::IsNullOrWhiteSpace($desktopPath)) {
 	$shortcut.TargetPath = $guiPythonExe
 	$shortcut.Arguments = "`"$analyzerScript`" `"$historyFile`""
 	$shortcut.WorkingDirectory = $projectDir
-	$shortcut.Description = 'Open BDF Battery Analyzer with the default collector dataset'
+	$shortcut.Description = 'Open Battery Health Analyzer with the default history file'
 	$shortcut.IconLocation = "$guiPythonExe,0"
 	$shortcut.Save()
 }
 
-$action = New-ScheduledTaskAction -Execute $loggerPythonExe -Argument "`"$loggerScript`" --loop --interval 60 --output `"$historyFile`"" -WorkingDirectory $projectDir
+$action = New-ScheduledTaskAction -Execute $loggerPythonExe -Argument "`"$loggerScript`" --loop --interval-seconds 60 --metric $metricMode --output `"$historyFile`"" -WorkingDirectory $projectDir
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 
 if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
@@ -102,5 +105,5 @@ try {
 	Write-Warning "Task installed but could not be started immediately: $($_.Exception.Message)"
 }
 
-Write-Host "Collector mode: BDF (health-oriented telemetry)"
+Write-Host "Logger metric mode: $metricMode"
 Write-Host "Installed desktop shortcut: Battery Health Analyzer.lnk"

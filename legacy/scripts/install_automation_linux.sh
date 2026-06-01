@@ -10,14 +10,14 @@ ANALYZER_WRAPPER="$SCRIPT_DIR/open_battery_health_analyzer.sh"
 ICON_FILE="$PROJECT_DIR/assets/battery-health-analyzer.svg"
 
 usage() {
-	echo "Usage: $0"
+	echo "Usage: $0 [--metric health|charge]"
 }
 
 normalize_metric_mode() {
 	local raw_mode="$1"
 	raw_mode="${raw_mode,,}"
-	if [[ "$raw_mode" != "health" ]]; then
-		echo "Only 'health' is supported in BDF collector mode."
+	if [[ "$raw_mode" != "health" && "$raw_mode" != "charge" ]]; then
+		echo "Invalid metric mode: '$1'. Expected 'health' or 'charge'."
 		exit 1
 	fi
 	echo "$raw_mode"
@@ -91,8 +91,9 @@ if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; 
 fi
 
 if [[ ${EUID:-$(id -u)} -eq 0 && -n "${SUDO_USER:-}" && -z "${BATTERY_LOGGER_METRIC:-}" && -z "$CLI_METRIC_MODE" ]]; then
-	echo "Note: BATTERY_LOGGER_METRIC is kept only for backward compatibility."
-	echo "      BDF collector currently uses health-oriented battery telemetry output."
+	echo "Note: running via sudo can drop exported BATTERY_LOGGER_METRIC from your shell."
+	echo "      Use '--metric charge' (preferred) or 'sudo BATTERY_LOGGER_METRIC=charge $0'."
+	echo "      No explicit metric was provided, so installer preserved existing service mode: $METRIC_MODE"
 fi
 
 chmod +x "$LOGGER_WRAPPER" "$ANALYZER_WRAPPER"
@@ -102,7 +103,7 @@ cat > "$APP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Battery Health Analyzer
-Comment=Open BDF Battery Analyzer with the default collector dataset
+Comment=Open Battery Health Analyzer with the default history file
 Exec=$ANALYZER_WRAPPER
 Icon=$ICON_FILE
 Terminal=false
@@ -115,7 +116,7 @@ if [ -d "$HOME/Desktop" ]; then
 [Desktop Entry]
 Type=Application
 Name=Battery Health Analyzer
-Comment=Open BDF Battery Analyzer with the default collector dataset
+Comment=Open Battery Health Analyzer with the default history file
 Exec=$ANALYZER_WRAPPER
 Icon=$ICON_FILE
 Terminal=false
@@ -147,6 +148,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now battery-health-analyzer-logger.service
 
 echo "Installed logger service: battery-health-analyzer-logger.service"
-echo "Collector mode: BDF (health-oriented telemetry)"
+echo "Logger metric mode: $METRIC_MODE"
 echo "Installed analyzer launcher: $APP_FILE"
 echo "Optional desktop shortcut: $DESKTOP_FILE"

@@ -31,21 +31,23 @@ cat > "$PLIST_FILE" <<EOF
 	<key>ProgramArguments</key>
 	<array>
 		<string>$PYTHON_BIN</string>
-		<string>$PROJECT_DIR/battery_bdf_collector.py</string>
+		<string>$PROJECT_DIR/battery_logger.py</string>
 		<string>--loop</string>
-		<string>--interval</string>
+		<string>--interval-seconds</string>
 		<string>60</string>
+		<string>--metric</string>
+		<string>$METRIC_MODE</string>
 		<string>--output</string>
-		<string>$PROJECT_DIR/battery_data.bdf.csv</string>
+		<string>$PROJECT_DIR/battery_history.csv</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
 	<true/>
 	<key>StandardOutPath</key>
-	<string>$PROJECT_DIR/battery_bdf_collector.out.log</string>
+	<string>$PROJECT_DIR/battery_logger.out.log</string>
 	<key>StandardErrorPath</key>
-	<string>$PROJECT_DIR/battery_bdf_collector.err.log</string>
+	<string>$PROJECT_DIR/battery_logger.err.log</string>
 </dict>
 </plist>
 EOF
@@ -60,5 +62,5 @@ launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
 launchctl kickstart -k "gui/$(id -u)/com.batteryhealth.logger"
 
 echo "Installed LaunchAgent: $PLIST_FILE"
-echo "Collector mode: BDF (health-oriented telemetry)"
+echo "Logger metric mode: $METRIC_MODE"
 echo "Desktop shortcut: $DESKTOP_SHORTCUT"
