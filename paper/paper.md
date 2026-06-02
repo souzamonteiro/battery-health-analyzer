@@ -1,199 +1,165 @@
 ---
-title: 'Gala: A Python package for galactic dynamics'
+title: 'Maia Battery Health Analyzer: Open‑Source Toolkit for BDF‑Compliant Telemetry Collection and Degradation Modelling'
+
 tags:
   - Python
-  - astronomy
-  - dynamics
-  - galactic dynamics
-  - milky way
+  - Node.js
+  - battery
+  - forecast
+  - regression
+  - soh
+  - svr
+  
 authors:
-  - name: Adrian M. Price-Whelan
-    orcid: 0000-0000-0000-0000
+  - name: Roberto Luiz Souza Monteiro
+    orcid: 0000-0002-3931-5953
     equal-contrib: true
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
-  - name: Author Without ORCID
-    equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
-    affiliation: 2
-  - name: Author with no affiliation
-    corresponding: true # (This is how to denote the corresponding author)
-    affiliation: 3
-  - given-names: Ludwig
-    dropping-particle: van
-    surname: Beethoven
-    affiliation: 3
+  - name: Marcos Toranosuke Morita
+    orcid: 0009-0009-1530-0106
+    equal-contrib: true
+    affiliation: "2" # (Multiple affiliations must be quoted)
+  - name: Andréia Rita da Silva
+    orcid: 0009-0009-0587-1263
+    equal-contrib: true
+    affiliation: "2" # (Multiple affiliations must be quoted)
+  - name: Thiago	Barros Murari
+    orcid: 0000-0001-5598-2679
+    equal-contrib: true
+    affiliation: "2" # (Multiple affiliations must be quoted)
+  - name: Marcos Batista Figueredo
+    orcid: 0000-0002-8193-5419
+    equal-contrib: true
+    affiliation: "1" # (Multiple affiliations must be quoted)
+  - name: Hernane Barros de Borges Pereira
+    orcid: 0000-0001-7476-9267
+    equal-contrib: true
+    affiliation: "1, 2" # (Multiple affiliations must be quoted)
+    
 affiliations:
- - name: Lyman Spitzer, Jr. Fellow, Princeton University, United States
+ - name: State University of Bahia, UBrazil
    index: 1
-   ror: 00hx57361
- - name: Institution Name, Country
+ - name: SENAI CIMATEC University
    index: 2
- - name: Independent Researcher, Country
-   index: 3
-date: 13 August 2017
+date: 2 June 2026
 bibliography: paper.bib
 
 # Optional fields if submitting to a AAS journal too, see this blog post:
 # https://blog.joss.theoj.org/2018/12/a-new-collaboration-with-aas-publishing
-aas-doi: 10.3847/xxxxx <- update this with the DOI from AAS once you know it.
-aas-journal: Astrophysical Journal <- The name of the AAS journal.
+# aas-doi: 10.3847/xxxxx
+# aas-journal: Astrophysical Journal
 ---
 
 # Summary
 
-The forces on stars, galaxies, and dark matter under external gravitational
-fields lead to the dynamical evolution of structures in the universe. The orbits
-of these bodies are therefore key to understanding the formation, history, and
-future state of galaxies. The field of "galactic dynamics," which aims to model
-the gravitating components of galaxies to study their structure and evolution,
-is now well-established, commonly taught, and frequently used in astronomy.
-Aside from toy problems and demonstrations, the majority of problems require
-efficient numerical tools, many of which require the same base code (e.g., for
-performing numerical orbit integration).
+Maia Battery Health Analyzer is a toolkit for real-time data collection from mobile, Windows, Linux, and macOS device batteries, analysis and estimation of state of health (SOH), and prediction of remaining battery life, compatible with the Battery Data Format (BDF). The toolkit includes a program for real-time data capture, a command-line tool with automation capabilities for analyzing and diagnosing multiple BDF files, including graph generation, a graphical user interface, and a web service that allows battery data analysis from the internet. The tools are distributed under the Apache 2.0 license and can be obtained from GitHub.
 
 # Statement of need
 
-`Gala` is an Astropy-affiliated Python package for galactic dynamics. Python
-enables wrapping low-level languages (e.g., C) for speed without losing
-flexibility or ease-of-use in the user-interface. The API for `Gala` was
-designed to provide a class-based and user-friendly interface to fast (C or
-Cython-optimized) implementations of common operations such as gravitational
-potential and force evaluation, orbit integration, dynamical transformations,
-and chaos indicators for nonlinear dynamics. `Gala` also relies heavily on and
-interfaces well with the implementations of physical units and astronomical
-coordinate systems in the `Astropy` package [@astropy] (`astropy.units` and
-`astropy.coordinates`).
+Despite the growing interest in and adoption of Battery Data Format (BDF) for storing data collected from various types of batteries, there are no kits that provide cross-platform, real-time data acquisition and real-time analysis of battery health and remaining lifespan for mobile devices, are easy to install and use by both researchers and end users of mobile devices, and offer an integrated web interface allowing online data analysis, as well as the generation of synthetic data for research and training of predictive models.
 
-`Gala` was designed to be used by both astronomical researchers and by
-students in courses on gravitational dynamics or astronomy. It has already been
-used in a number of scientific publications [@Pearson:2017] and has also been
-used in graduate courses on Galactic dynamics to, e.g., provide interactive
-visualizations of textbook material [@Binney:2008]. The combination of speed,
-design, and support for Astropy functionality in `Gala` will enable exciting
-scientific explorations of forthcoming data releases from the *Gaia* mission
-[@gaia] by students and experts alike.
+Maia Battery Health Analyzer fills this gap by offering industry standardization, using the BDF format, two different analysis methods, linear regression and Support Vector Regression (SVR), with graph generation and human-readable results, generation of synthetic data in BDF format, and automation for data capture on Windows, Linux, and macOS mobile devices, in addition to allowing batch processing of BDF files.
 
-# State of the field                                                                                                                  
+# State of the field                                                                                               
+Solutions for data capture, health analysis, and prediction of remaining battery life exist, but not in an integrated way that conforms to industry standards.
 
-Several tools exist for galactic dynamics computations:                                                     
-`galpy` [@Bovy:2015] is a Python package with similar goals,
-providing orbit integration and potential classes for galactic dynamics.                                                              
-`NEMO` [@Teuben:1995] is a well-established, comprehensive stellar dynamics                                                           
-toolbox written primarily in C, offering extensive functionality but with a                                                           
-steeper learning curve and less integration with modern Python workflows.                                                             
-Other tools like `GalPot` provide specific Milky Way potential models but lack                                                        
-the broader dynamical analysis capabilities.                                                                                          
-                                                                                                                                        
-`Gala` was built rather than contributing to existing projects for several                                                            
-reasons. First, `Gala` was designed from the ground up to integrate seamlessly                                                        
-with the Astropy ecosystem, using `astropy.units` and `astropy.coordinates`                                                           
-as core dependencies rather than optional features. This tight integration                                                            
-enables natural workflows for astronomers already using Astropy. Second,                                                              
-`Gala`'s object-oriented API with consistent interfaces across subpackages                                                            
-(potentials, integrators, dynamics) provides a more modular and extensible                                                            
-design than alternatives available at the time. Third, `Gala` fills a specific                                                        
-niche between simple demonstration codes and full N-body simulation packages                                                          
-like `Gadget` [@Springel:2005] – it focuses on the common tasks in galactic                                                             
-dynamics research (orbit integration, potential evaluation, coordinate                                                                
-transformations) while maintaining both performance through C implementations                                                         
-and usability through its Python interface.  
+Continue...
 
 # Software design
 
-`Gala`'s design philosophy is based on three core principles: (1) to provide a
-user-friendly, modular, object-oriented API, (2) to use community tools and
-standards (e.g., Astropy for coordinates and units handling), and (3) to use
-low-level code (C/C++/Cython) for performance while keeping the user interface
-in Python. Within each of the main subpackages in `gala` (`gala.potential`,
-`gala.dynamics`, `gala.integrate`, etc.), we try to maintain a consistent API
-for classes and functions. For example, all potential classes share a common
-base class and implement methods for computing the potential, forces, density,
-and other derived quantities at given positions. This also works for
-compositions of potentials (i.e., multi-component potential models), which
-share the potential base class but also act as a dictionary-like container for
-different potential components. As another example, all integrators implement a
-common interface for numerically integrating orbits. The integrators and core
-potential functions are all implemented in C without support for units, but the
-Python layer handles unit conversions and prepares data to dispatch to the C
-layer appropriately.Within the coordinates subpackage, we extend Astropy's
-coordinate classes to add more specialized coordinate frames and
-transformations that are relevant for Galactic dynamics and Milky Way research.
+**Maia Battery Health Analyzer** consists of four Python applications ('battery_bdf_analyzer_console.py', 'battery_bdf_analyzer.py', 'battery_bdf_collector.py', 'generate_test_bdf_data.py') and one Node.js application ('server.js'). All data processing and analysis is performed by the Python applications, but they are not interdependent. The Node.js application, on the other hand, uses the programs 'battery_bdf_analyzer_console.py', for analysis and prediction, and 'generate_test_bdf_data.py' for creating synthetic battery data in BDF format.
+
+Continued...
 
 # Research impact statement
 
-`Gala` has demonstrated significant research impact and grown both its user base
-and contributor community since its initial release. The package has evolved
-through contributions from over 18 developers beyond the original core developer
-(@adrn), with community members adding new features, reporting bugs, and
-suggesting new features.
+The **Maia Battery Health Analyzer** tool kit has been of great importance for battery research in master's theses at the State University of Bahia and SENAI CIMATEC University.
 
-While `Gala` started as a tool primarily to support the core developer's
-research, it has expanded organically to support a range of applications across
-domains in astrophysics related to Milky Way and galactic dynamics. The package
-has been used in over 400 publications (according to Google Scholar) spanning
-topics in galactic dynamics such as modeling stellar streams [@Pearson:2017],
-Milky Way mass modeling, and interpreting kinematic and stellar population
-trends in the Galaxy. `Gala` is integrated within the Astropy ecosystem as an
-affiliated package and has built functionality that extends the widely-used
-`astropy.units` and `astropy.coordinates` subpackages. `Gala`'s impact extends
-beyond citations in research: Because of its focus on usability and user
-interface design, `Gala` has also been incorporated into graduate-level galactic
-dynamics curricula at multiple institutions.
-
-`Gala` has been downloaded over 100,000 times from PyPI and conda-forge yearly
-(or ~2,000 downloads per week) over the past few years, demonstrating a broad
-and active user community. Users span career stages from graduate students to
-faculty and other established researchers and represent institutions around the
-world. This broad adoption and active participation validate `Gala`'s role as
-core community infrastructure for galactic dynamics research.
+Continued...
 
 # Mathematics
 
-Single dollars ($) are required for inline mathematics e.g. $f(x) = e^{\pi/x}$
+### 1. Data collector – `battery_bdf_collector.py`
 
-Double dollars make self-standing equations:
+Reads platform‑specific power supply interfaces:
+- **Linux**: `energy_now`, `voltage_now`, `current_now`, `cycle_count`, `temperature` from `/sys/class/power_supply/BAT*`.
+- **Windows**: `Win32_Battery` (voltage, estimated charge rate).
+- **macOS**: `pmset -g batt` (best‑effort parsing).
 
-$$\Theta(x) = \left\{\begin{array}{l}
-0\textrm{ if } x < 0\cr
-1\textrm{ else}
-\end{array}\right.$$
+Each sample computes:
+- `Test Time / s` – elapsed wall time since collector start.
+- `Unix Time / s` – POSIX timestamp.
+- `Power / W = Voltage × Current` (with sign convention: charging → current ≥ 0, discharging → current ≤ 0).
 
-You can also use plain \LaTeX for equations
-\begin{equation}\label{eq:fourier}
-\hat f(\omega) = \int_{-\infty}^{\infty} f(x) e^{i\omega x} dx
-\end{equation}
-and refer to \autoref{eq:fourier} from text.
+Output is a CSV file with BDF preferred‑label headers (e.g. `Test Time / s, Voltage / V, Current / A, Cycle Count / 1, Ambient Temperature / degC`). Loop and one‑shot modes are supported.
 
-# Citations
+### 2. Header normalisation (both analyzers)
 
-Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
+The analyzers automatically map BDF preferred labels and legacy aliases to internal names:
 
-If you want to cite a software repository URL (e.g. something on GitHub without a preferred
-citation) then you can do it with the example BibTeX entry below for @fidgit.
+| Preferred label | Internal alias |
+|----------------|----------------|
+| `Test Time / s` | `test_time_second` |
+| `Voltage / V` | `voltage_volt` |
+| `Current / A` | `current_ampere` |
+| `Capacity / %` | `capacity_percent` |
+| `Cycle Count / 1` | `cycle_count` |
 
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
+If `Capacity / %` is missing, SOH is estimated via Coulomb counting (see below).
 
-# Figures
+### 3. State‑of‑health (SOH) computation
 
-Figures can be included like this:
-![Caption for example figure.\label{fig:example}](figure.png)
-and referenced from text using \autoref{fig:example}.
+**Primary method** – if the file contains a `Capacity / %` column (as written by synthetic generator or some BMS), SOH equals that percentage directly.
 
-Figure sizes can be customized by adding an optional second parameter:
-![Caption for example figure.](figure.png){ width=20% }
+**Fallback (Coulomb counting)** – when capacity is absent, SOH is derived from cumulative absolute current throughput:
+
+$$
+\Delta t_i = t_i - t_{i-1}, \quad
+Q_i = \sum_{k=1}^{i} \frac{|I_k|\,\Delta t_k}{3600}, \quad
+\mathrm{SOH}_i = 100 \left(1 - \frac{Q_i}{\max(Q)}\right)
+$$
+
+Results are clipped to $[0, 100]$. This method works for any dataset containing current and time.
+
+### 4. Linear degradation model (RUL)
+
+Fits ordinary least squares: $\mathrm{SOH}(t) = a + bt$, where $t$ = `test_time_second`. Degradation slope is reported in % per day: $b_{\mathrm{day}} = b \cdot 86400$.
+
+Remaining useful life (RUL) to end‑of‑life threshold $\mathrm{SOH}_{\mathrm{eol}}$ (default 70%):
+
+$$
+t_{\mathrm{eol}} = \frac{\mathrm{SOH}_{\mathrm{eol}} - a}{b}, \quad
+\mathrm{RUL} = \max\left(0,\, t_{\mathrm{eol}} - t_{\mathrm{current}}\right)
+$$
+
+Special cases: if $b \ge 0$ → infinite RUL (no degradation trend); if current SOH ≤ EOL → RUL = 0.
+
+### 5. Support‑vector regression (SVR) model
+
+Uses `sklearn.svm.SVR` with RBF kernel ($C=10.0$, $\epsilon=0.01$). Features:
+- `test_time_second`
+- `voltage_volt`
+- `current_ampere`
+- `ambient_temperature_celsius` (default 25.0 if missing)
+
+Features are standardised (`StandardScaler`). The model is trained on all available data and reports $R^2$ and MAE. This captures non‑local, non‑linear ageing behaviour that the linear model may miss.
+
+### 6. Synthetic data generator – `generate_test_bdf_data.py`
+
+Creates physically plausible BDF datasets with:
+- Monotonic long‑term SOH decline (linear from `start_soh` to `end_soh`).
+- Sinusoidal local variation + Gaussian noise.
+- Bounded voltage, current, and temperature ranges.
+- Cycle count progression.
+
+By default, `end_soh > 70%` so that models can be tested before reaching EOL.
 
 # AI usage disclosure
 
-No generative AI tools were used in the development of this software, the writing
-of this manuscript, or the preparation of supporting materials.
+We used artificial intelligence (**DeepSeek-V3** and **GPT-5.3-Codex**) to create the project prototypes, and these prototypes are preserved for study and reference in the *prototypes* folder in the GitHub repository. No part of this paper's manuscript, however, was written using AI; it was constructed entirely by the researchers.
 
 # Acknowledgements
 
-We acknowledge contributions from Brigitta Sipocz, Syrtis Major, and Semyeong
-Oh, and support from Kathryn Johnston during the genesis of this project.
+We acknowledge and appreciate the support of our students and colleagues who dedicated their time and effort to testing and reviewing the code and text developed for this project.
 
 # References

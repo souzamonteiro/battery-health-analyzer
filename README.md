@@ -1,4 +1,4 @@
-# Battery Health Analyzer (BDF Workflow)
+# Maia Battery Health Analyzer
 
 Battery telemetry collection and analysis toolkit using the Battery Data Format (BDF).
 

@@ -199,6 +199,33 @@
       .hidden {
         display: none;
       }
+
+      .consent {
+        margin-top: 10px;
+        background: #f3f6fc;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+
+      .consent label {
+        margin: 0;
+        color: var(--text);
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 0.9rem;
+        line-height: 1.35;
+      }
+
+      .consent input[type='checkbox'] {
+        width: auto;
+        margin-top: 2px;
+      }
+
+      .consent a {
+        color: var(--primary);
+      }
     </style>
 
     <link rel="stylesheet" href="css/fontawesome.min.css">
@@ -227,6 +254,16 @@
               <label>
                 SVR horizon (days)
                 <input id="svrDays" name="svrDays" type="number" value="30" step="1" min="1" max="3650" />
+              </label>
+            </div>
+
+            <div class="consent">
+              <label for="publicDomainConsent">
+                <input id="publicDomainConsent" name="publicDomainConsent" type="checkbox" required />
+                <span>
+                  By submitting battery data files, I agree to dedicate the submitted data to the public domain under
+                  <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener noreferrer">Creative Commons CC0 1.0 (No Copyright)</a>.
+                </span>
               </label>
             </div>
 
@@ -299,6 +336,9 @@
             <p style="font-size: 12px; opacity: 0.8;">
                 Battery Health Analyzer is an open-source project licensed under Apache 2.0. Developed by <a href="https://www.souzamonteiro.com" target="_blank" style="color: var(--primary-color); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Roberto Luiz Souza Monteiro</a>.
             </p>
+            <p style="font-size: 12px; opacity: 0.8; margin-top: 8px;">
+              <a href="privacy.html" style="color: var(--primary-color); text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Privacy Policy</a>
+            </p>
         </article>
       </section>
     </main>
@@ -314,6 +354,7 @@
       const generateStatus = document.getElementById('generateStatus');
       const datasetLink = document.getElementById('datasetLink');
       const generateAnalyzeBtn = document.getElementById('generateAnalyzeBtn');
+      const publicDomainConsent = document.getElementById('publicDomainConsent');
 
       function setStatus(el, type, message) {
         el.className = `status ${type}`;
@@ -408,6 +449,11 @@
         const fileInput = document.getElementById('batteryFile');
         if (!fileInput.files.length) {
           setStatus(analyzeStatus, 'error', 'Please choose a CSV file first.');
+          return;
+        }
+
+        if (!publicDomainConsent.checked) {
+          setStatus(analyzeStatus, 'error', 'You must agree to the CC0 public-domain dedication before submitting files.');
           return;
         }
 
