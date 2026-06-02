@@ -1,0 +1,37 @@
+{
+  "input_file": "/home/roberto/projects/battery-health-analyzer/runtime/analyses/an_9f1f32c7-7ea6-433e-97be-3552823d9c65/Microsoft__manufacturer1-endt44198-2024-A0006__202603_5xC5-25degC.csv",
+  "samples": 1216,
+  "time_range_seconds": {
+    "start": 0.0,
+    "end": 121500.81
+  },
+  "cycle_count_range": {
+    "min": 0,
+    "max": 5
+  },
+  "current_health": {
+    "current_soh_percent": 0.0,
+    "minimum_soh_percent": 0.0,
+    "average_soh_percent": 51.884545268505626
+  },
+  "linear_model": {
+    "r2": 0.9993022804598646,
+    "slope_percent_per_day": -72.42746765132377,
+    "eol_threshold_percent": 70.0,
+    "rul_seconds": 0.0,
+    "rul_human": "0.0 days"
+  },
+  "svr_model": {
+    "r2": 0.9993095628030567,
+    "mae_percent": 0.19299418733373622,
+    "forecast_horizon_days": 30.0,
+    "eol_threshold_percent": 70.0,
+    "rul_seconds": 0.0,
+    "rul_human": "0.0 days"
+  },
+  "saved_plots": [
+    "/home/roberto/projects/battery-health-analyzer/runtime/analyses/an_9f1f32c7-7ea6-433e-97be-3552823d9c65/plots/soh_linear.png",
+    "/home/roberto/projects/battery-health-analyzer/runtime/analyses/an_9f1f32c7-7ea6-433e-97be-3552823d9c65/plots/soh_svr.png",
+    "/home/roberto/projects/battery-health-analyzer/runtime/analyses/an_9f1f32c7-7ea6-433e-97be-3552823d9c65/plots/soh_distribution.png"
+  ]
+}

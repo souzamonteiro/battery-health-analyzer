@@ -144,3 +144,27 @@ Default configuration keeps `end_soh > 70`, so tests do not start in end-of-life
 - Linear model: stable trend and interpretable RUL baseline.
 - SVR: captures non-linear local behavior and can improve fit diagnostics.
 - Use both metrics together (trend + fit quality) for robust monitoring.
+
+## 8) Console output formats and batch mode
+
+`battery_bdf_analyzer_console.py` supports:
+
+- Human-readable text report (stdout).
+- JSON report files (`--json` or automatic in batch mode).
+
+### Batch wildcard mode
+
+Input patterns with glob wildcards are supported, for example:
+
+```bash
+python3 battery_bdf_analyzer_console.py dataset/*.csv
+```
+
+For each input file:
+
+1. The full analysis pipeline is executed independently.
+2. A text report is printed.
+3. A JSON report named `input_stem.json` is generated.
+
+By default JSON files are written next to their corresponding input files.
+Use `--json-dir` to redirect all JSON outputs to a specific directory.

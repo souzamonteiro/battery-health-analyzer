@@ -19,6 +19,8 @@ This repository now uses the **BDF collector/analyzer stack**:
   - If started without arguments, it auto-loads `battery_data.bdf.csv` when that file exists.
 - `battery_bdf_analyzer_console.py`
   - CLI report + PNG plots.
+  - JSON report output support.
+  - Batch processing with wildcard input patterns.
   - Graceful `Ctrl+C` handling.
 - `generate_test_bdf_data.py`
   - Generates realistic degradation data that stays above EOL by default.
@@ -29,6 +31,28 @@ This repository now uses the **BDF collector/analyzer stack**:
 - Algorithm documentation: [docs/BDF_ANALYSIS_ALGORITHMS.md](docs/BDF_ANALYSIS_ALGORITHMS.md)
 
 ## Quick Start
+
+### 0) Start the REST service + web UI
+
+Install Node dependencies and start the service:
+
+```bash
+npm install
+npm start
+```
+
+Then open:
+
+- `http://localhost:8000` (web interface for upload, predictions, and plots)
+- `http://localhost:8000/api/health` (service health check)
+
+Main REST endpoints:
+
+- `POST /api/analyze` (multipart field: `batteryFile`; optional: `eol`, `svrDays`)
+- `POST /api/generate-dataset` (JSON body with generator parameters)
+- `GET /api/analysis/:jobId/report`
+- `GET /api/analysis/:jobId/plots/:plotName`
+- `GET /api/datasets/:fileName`
 
 ### 1) Collect one sample
 
@@ -56,11 +80,47 @@ If `battery_data.bdf.csv` exists in the project root, it is loaded automatically
 python3 battery_bdf_analyzer_console.py battery_data.bdf.csv --outdir plots_bdf --eol 70
 ```
 
+Generate JSON output for a single file:
+
+```bash
+python3 battery_bdf_analyzer_console.py battery_data.bdf.csv --json
+```
+
+Batch process using wildcards (one JSON per input file):
+
+```bash
+python3 battery_bdf_analyzer_console.py dataset/*.csv
+```
+
+In batch mode, the analyzer automatically writes `file_name.json` for each input
+next to its source file. You can override JSON destination directory with:
+
+```bash
+python3 battery_bdf_analyzer_console.py dataset/*.csv --json-dir reports_json
+```
+
 ### 4) Generate synthetic test data
 
 ```bash
 python3 generate_test_bdf_data.py --output battery_test_degradation.bdf.csv
 ```
+
+## CLI JSON Regression Tests
+
+The project includes a dedicated regression suite under `test/`:
+
+- `test/case_*.bdf.csv`: input datasets (10 generated test cases)
+- `test/case_*.test`: expected JSON baselines
+- `test/run_cli_json_tests.py`: automation runner
+
+Run all JSON regression tests:
+
+```bash
+python3 test/run_cli_json_tests.py
+```
+
+The runner executes `battery_bdf_analyzer_console.py` for each case, compares
+the generated `*.json` with `*.test`, and prints a consolidated pass/fail report.
 
 ## Automation Scripts (`scripts/`)
 

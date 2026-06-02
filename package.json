@@ -1,0 +1,23 @@
+{
+  "name": "battery-health-analyzer-service",
+  "version": "1.0.0",
+  "description": "REST service and web UI for Battery BDF analysis and synthetic dataset generation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "battery",
+    "bdf",
+    "rest",
+    "node",
+    "python"
+  ],
+  "author": "Roberto Luiz Souza Monteiro <roberto@souzamonteiro.com>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

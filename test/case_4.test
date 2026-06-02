@@ -1,0 +1,37 @@
+{
+  "input_file": "/home/roberto/projects/battery-health-analyzer/test/case_4.bdf.csv",
+  "samples": 1280,
+  "time_range_seconds": {
+    "start": 0.0,
+    "end": 69066.0
+  },
+  "cycle_count_range": {
+    "min": 0,
+    "max": 420
+  },
+  "current_health": {
+    "current_soh_percent": 82.6765,
+    "minimum_soh_percent": 82.6,
+    "average_soh_percent": 90.743658828125
+  },
+  "linear_model": {
+    "r2": 0.9989570633497307,
+    "slope_percent_per_day": -20.069470433484156,
+    "eol_threshold_percent": 70.0,
+    "rul_seconds": 54769.41227291104,
+    "rul_human": "0.6 days"
+  },
+  "svr_model": {
+    "r2": 0.9995969908110948,
+    "mae_percent": 0.07158507475989455,
+    "forecast_horizon_days": 30.0,
+    "eol_threshold_percent": 70.0,
+    "rul_seconds": null,
+    "rul_human": "> 30.0 days (within forecast horizon)"
+  },
+  "saved_plots": [
+    "test/plots/soh_linear.png",
+    "test/plots/soh_svr.png",
+    "test/plots/soh_distribution.png"
+  ]
+}
