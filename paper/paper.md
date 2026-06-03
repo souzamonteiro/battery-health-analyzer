@@ -77,41 +77,45 @@ The **Maia Battery Health Analyzer** tool kit has been of great importance for b
 
 Continued...
 
-# Mathematics
+# The mathematics
 
-### 1. Data collector – `battery_bdf_collector.py`
+## Data collection
 
-Reads platform‑specific power supply interfaces:
+### 1. The collector
+
+The data collection is performed locally using the `battery_bdf_collector.py` script. The script typically runs in the background and utilizes the API most appropriate for the underlying operating system, namely:
+
 - **Linux**: `energy_now`, `voltage_now`, `current_now`, `cycle_count`, `temperature` from `/sys/class/power_supply/BAT*`.
-- **Windows**: `Win32_Battery` (voltage, estimated charge rate).
-- **macOS**: `pmset -g batt` (best‑effort parsing).
+- **Windows**: `Voltage` from `Win32_Battery` and estimated charge rate.
+- **macOS**: `voltage` from `pmset -g batt` and estimated charge rate.
 
-Each sample computes:
-- `Test Time / s` – elapsed wall time since collector start.
-- `Unix Time / s` – POSIX timestamp.
-- `Power / W = Voltage × Current` (with sign convention: charging → current ≥ 0, discharging → current ≤ 0).
+For each sample we computes:
+- The elapsed wall time since collector start, `Test Time / s`.
+- The  POSIX timestamp, `Unix Time / s`.
+- The power rate, `Power / W = Voltage × Current`, with sign convention: charging → current ≥ 0, discharging → current ≤ 0.
 
-Output is a CSV file with BDF preferred‑label headers (e.g. `Test Time / s, Voltage / V, Current / A, Cycle Count / 1, Ambient Temperature / degC`). Loop and one‑shot modes are supported.
+The output is a CSV file in BDF format with the following header: `Test Time / s,Unix Time / s,Voltage / V,Current / A,Cycle Count / 1,Capacity / %,Power / W,Ambient Temperature / degC`. However, due to limitations of each system, some of these values ​​may be estimates or even zeros.
 
-### 2. Header normalisation (both analyzers)
+### 2. Data normalisation
 
-The analyzers automatically map BDF preferred labels and legacy aliases to internal names:
-
-| Preferred label | Internal alias |
-|----------------|----------------|
-| `Test Time / s` | `test_time_second` |
-| `Voltage / V` | `voltage_volt` |
-| `Current / A` | `current_ampere` |
-| `Capacity / %` | `capacity_percent` |
-| `Cycle Count / 1` | `cycle_count` |
+Since some systems only provide battery voltage or charge percentage, although the synthetic data generator creates a complete BDF file, the data collector only displays complete and real data in a Linux environment. In other environments, only `Test Time / s,Unix Time / s,Voltage` shows real values, with the remaining columns filled with zeros.
 
 If `Capacity / %` is missing, SOH is estimated via Coulomb counting (see below).
 
-### 3. State‑of‑health (SOH) computation
+## The estimator
 
-**Primary method** – if the file contains a `Capacity / %` column (as written by synthetic generator or some BMS), SOH equals that percentage directly.
+There are two programs for estimating battery degradation:
 
-**Fallback (Coulomb counting)** – when capacity is absent, SOH is derived from cumulative absolute current throughput:
+- The command-line tool, `battery_bdf_analyzer_console.py`.
+- The graphical tool, `battery_bdf_analyzer.py`.
+  
+Both use the same algorithms described below.
+ 
+ ### 1. Calculating the State‑of‑health (SOH)
+
+If the BDF file contains the `Capacity / %` column the the SOH is just equals to that percentage directly. This is the **Primary method**.
+
+However, when capacity is omitted in the BDF file, the SOH is derived from cumulative absolute current throughput. This the **Fallback method**. These calculations are described in the following formula:
 
 $$
 \Delta t_i = t_i - t_{i-1}, \quad
@@ -119,40 +123,41 @@ Q_i = \sum_{k=1}^{i} \frac{|I_k|\,\Delta t_k}{3600}, \quad
 \mathrm{SOH}_i = 100 \left(1 - \frac{Q_i}{\max(Q)}\right)
 $$
 
-Results are clipped to $[0, 100]$. This method works for any dataset containing current and time.
+The results are are clipped to $[0, 100]$. This method works if the BDF file contains `current` and `time`.
 
-### 4. Linear degradation model (RUL)
+### 2. Linear degradation model (RUL)
 
-Fits ordinary least squares: $\mathrm{SOH}(t) = a + bt$, where $t$ = `test_time_second`. Degradation slope is reported in % per day: $b_{\mathrm{day}} = b \cdot 86400$.
+The **linear degradation model** fits to an ordinary least squares: $\mathrm{SOH}(t) = a + bt$, where $t$ = `test_time_second`. The `degradation` slope is reported in % per day: $b_{\mathrm{day}} = b \cdot 86400$.
 
-Remaining useful life (RUL) to end‑of‑life threshold $\mathrm{SOH}_{\mathrm{eol}}$ (default 70%):
+The **remaining useful life** (RUL) to end‑of‑life threshold $\mathrm{SOH}_{\mathrm{eol}}$ and the default value is 70%:
 
 $$
 t_{\mathrm{eol}} = \frac{\mathrm{SOH}_{\mathrm{eol}} - a}{b}, \quad
 \mathrm{RUL} = \max\left(0,\, t_{\mathrm{eol}} - t_{\mathrm{current}}\right)
 $$
 
-Special cases: if $b \ge 0$ → infinite RUL (no degradation trend); if current SOH ≤ EOL → RUL = 0.
+The special case occurs if $b \ge 0$ → infinite RUL (no degradation trend). So if current $SOH ≤ EOL → RUL = 0$.
 
-### 5. Support‑vector regression (SVR) model
+### 3. Support‑vector regression (SVR) model
 
-Uses `sklearn.svm.SVR` with RBF kernel ($C=10.0$, $\epsilon=0.01$). Features:
+The **Support‑vector Regression** uses `sklearn.svm.SVR` Python library with RBF kernel ($C=10.0$, $\epsilon=0.01$). The features are:
 - `test_time_second`
 - `voltage_volt`
 - `current_ampere`
-- `ambient_temperature_celsius` (default 25.0 if missing)
+- `ambient_temperature_celsius`, with default to 25.0, if it is missed.
 
-Features are standardised (`StandardScaler`). The model is trained on all available data and reports $R^2$ and MAE. This captures non‑local, non‑linear ageing behaviour that the linear model may miss.
+The features are standardised using `StandardScaler`. The model is trained on all available data and reports the $R^2$ and the MAE. This method captures non-local and non-linear behaviors that a simple least squares fit would not capture.
 
-### 6. Synthetic data generator – `generate_test_bdf_data.py`
+## Synthetic data generator
 
-Creates physically plausible BDF datasets with:
+The synthetic data generator is the program `generate_test_bdf_data.py`. It creates physically plausible BDF datasets containing:
+
 - Monotonic long‑term SOH decline (linear from `start_soh` to `end_soh`).
 - Sinusoidal local variation + Gaussian noise.
 - Bounded voltage, current, and temperature ranges.
 - Cycle count progression.
 
-By default, `end_soh > 70%` so that models can be tested before reaching EOL.
+By default, `end_soh > 70%` so that models can be tested before reaching EOL, but this can be adjusted.
 
 # AI usage disclosure
 

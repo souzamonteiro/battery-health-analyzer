@@ -148,6 +148,33 @@ Both wrappers run `battery_bdf_collector.py --loop` and write to `battery_data.b
 
 Installers configure startup/background collection and desktop launchers to the BDF workflow.
 
+### Optional web server service installers (server environments)
+
+These are optional and intended for server deployments where `server.js` should start automatically as a system service:
+
+- Linux (systemd): `scripts/install_server_service_linux.sh`
+- macOS (LaunchDaemon): `scripts/install_server_service_macos.sh`
+- Windows (Scheduled Task as SYSTEM): `scripts/install_server_service_windows.ps1`
+
+Common wrapper used by Linux/macOS installer:
+
+- `scripts/run_battery_web_service.sh`
+
+Examples:
+
+```bash
+# Linux
+sudo ./scripts/install_server_service_linux.sh --port 8000
+
+# macOS
+sudo ./scripts/install_server_service_macos.sh --port 8000
+```
+
+```powershell
+# Windows PowerShell (Run as Administrator)
+./scripts/install_server_service_windows.ps1 -Port 8000
+```
+
 ## BDF Header Notes
 
 Collector output uses preferred-label style headers, for example:
