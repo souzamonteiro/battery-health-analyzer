@@ -1,0 +1,14 @@
+android/.gradle-dist/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+
+runtime/analyses/
+runtime/generated/
+runtime/uploads/
+
+*.apk
+*.aab
+
+node_modules/

@@ -226,6 +226,201 @@
       .consent a {
         color: var(--primary);
       }
+
+      .health-display {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 16px;
+        align-items: center;
+      }
+
+      @media (max-width: 700px) {
+        .health-display {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .battery-visual {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .battery-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .battery-body {
+        width: 240px;
+        height: 100px;
+        border: 3px solid var(--text);
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        background: #f0f0f0;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .battery-body::after {
+        content: '';
+        position: absolute;
+        right: -10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 12px;
+        height: 30%;
+        background: var(--text);
+        border-radius: 0 4px 4px 0;
+      }
+
+      .battery-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4CAF50 0%, #4CAF50 100%);
+        transition: all 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .battery-fill.danger {
+        background: linear-gradient(90deg, #d93025 0%, #e67c73 100%);
+      }
+
+      .battery-fill.warning {
+        background: linear-gradient(90deg, #f9ab00 0%, #fbc02d 100%);
+      }
+
+      .battery-fill.success {
+        background: linear-gradient(90deg, #188038 0%, #34a853 100%);
+      }
+
+      .battery-markers {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .battery-marker {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.4);
+      }
+
+      .battery-marker.marker-80 {
+        left: 80%;
+        border-left: 2px solid rgba(0, 0, 0, 0.3);
+      }
+
+      .battery-marker.marker-70 {
+        left: 70%;
+        border-left: 2px dashed rgba(0, 0, 0, 0.3);
+      }
+
+      .battery-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        text-align: center;
+      }
+
+      .battery-percentage {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text);
+        min-width: 80px;
+      }
+
+      .battery-info {
+        display: grid;
+        gap: 12px;
+      }
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .info-row:last-child {
+        border-bottom: none;
+      }
+
+      .info-label {
+        font-size: 0.9rem;
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      .info-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .rul-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .rul-badge.success {
+        background: #e6f6ee;
+        color: var(--success);
+      }
+
+      .rul-badge.warning {
+        background: #fff3e0;
+        color: #f57c00;
+      }
+
+      .rul-badge.danger {
+        background: #fdecec;
+        color: var(--danger);
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .metric-box {
+        background: #f9fafb;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+        font-size: 0.85rem;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .metric-value {
+        font-weight: 600;
+        color: var(--text);
+        margin-top: 2px;
+      }
     </style>
 
     <link rel="stylesheet" href="css/fontawesome.min.css">
@@ -273,8 +468,38 @@
           <div id="analyzeStatus" class="status"></div>
 
           <div id="analysisResult" class="hidden">
-            <div class="summary" id="summary"></div>
-            <h3>Generated plots</h3>
+            <div id="healthDisplay" class="health-display">
+              <div class="battery-visual">
+                <div class="battery-container">
+                  <div class="battery-body">
+                    <div id="batteryFill" class="battery-fill success">
+                      <div class="battery-markers">
+                        <div class="battery-marker marker-80">80%</div>
+                        <div class="battery-marker marker-70">70%</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="batteryPercentage" class="battery-percentage">99%</div>
+                </div>
+                <div class="battery-label" id="batteryStatus">Battery Health</div>
+              </div>
+              <div id="healthInfo" class="battery-info">
+                <div class="info-row">
+                  <span class="info-label">Current SOH</span>
+                  <span class="info-value" id="infoCurrentSoh">99.00%</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Linear RUL</span>
+                  <span class="info-value" id="infoLinearRul">-</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">SVR RUL</span>
+                  <span class="info-value" id="infoSvrRul">-</span>
+                </div>
+              </div>
+            </div>
+            <div class="summary" id="summary" style="margin-top: 16px;"></div>
+            <h3 style="margin-top: 20px;">Generated plots</h3>
             <div id="plots" class="plots"></div>
           </div>
         </article>
@@ -366,6 +591,46 @@
         el.textContent = '';
       }
 
+      function renderBatteryHealth(sohPercent, linearRul, svrRul) {
+        const batteryFill = document.getElementById('batteryFill');
+        const batteryPercentage = document.getElementById('batteryPercentage');
+        const batteryStatus = document.getElementById('batteryStatus');
+        const infoCurrentSoh = document.getElementById('infoCurrentSoh');
+        const infoLinearRul = document.getElementById('infoLinearRul');
+        const infoSvrRul = document.getElementById('infoSvrRul');
+
+        // Update percentage
+        batteryPercentage.textContent = `${sohPercent.toFixed(1)}%`;
+        infoCurrentSoh.textContent = `${sohPercent.toFixed(2)}%`;
+
+        // Set fill width and color
+        batteryFill.style.width = `${Math.max(0, Math.min(100, sohPercent))}%`;
+
+        // Determine color and message
+        batteryFill.classList.remove('success', 'warning', 'danger');
+        if (sohPercent > 80) {
+          batteryFill.classList.add('success');
+          batteryStatus.textContent = '✓ Excellent Health';
+          batteryStatus.style.color = '#188038';
+        } else if (sohPercent >= 70) {
+          batteryFill.classList.add('warning');
+          batteryStatus.textContent = '⚠ Good Health';
+          batteryStatus.style.color = '#f57c00';
+        } else {
+          batteryFill.classList.add('danger');
+          batteryStatus.textContent = '✗ Poor Health';
+          batteryStatus.style.color = '#d93025';
+        }
+
+        // Update RUL info
+        const linearRulColor = sohPercent > 80 ? 'success' : sohPercent >= 70 ? 'warning' : 'danger';
+        const svrRulColor = sohPercent > 80 ? 'success' : sohPercent >= 70 ? 'warning' : 'danger';
+
+        infoLinearRul.innerHTML = `<span class="rul-badge ${linearRulColor}">${linearRul}</span>`;
+        infoSvrRul.innerHTML = `<span class="rul-badge ${svrRulColor}">${svrRul}</span>`;
+      }
+
+
       function getGenerationPayload() {
         return {
           samples: Number(document.getElementById('samples').value),
@@ -420,12 +685,12 @@
         const svr = report.svr_model;
         const current = report.current_health;
 
+        // Render battery health visualization
+        renderBatteryHealth(current.current_soh_percent, linear.rul_human, svr.rul_human);
+
         summary.innerHTML = `
           <p><strong>Input:</strong> ${report.input_file}</p>
           <p><strong>Samples:</strong> ${report.samples}</p>
-          <p><strong>Current SOH:</strong> ${current.current_soh_percent.toFixed(2)}%</p>
-          <p><strong>Linear RUL:</strong> ${linear.rul_human}</p>
-          <p><strong>SVR RUL:</strong> ${svr.rul_human}</p>
           <p><strong>Linear R²:</strong> ${linear.r2.toFixed(4)} | <strong>SVR R²:</strong> ${svr.r2.toFixed(4)}</p>
           <p><strong>Report endpoint:</strong> <code>${data.reportUrl}</code></p>
         `;

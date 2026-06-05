@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Battery Collector</string>
+    <string name="home_title">Battery Data Collector</string>
+    <string name="home_subtitle">Collect battery samples, save BDF locally, and upload to your analysis server.</string>
+    <string name="collection_status_title">Collection Status</string>
+    <string name="samples_collected">Samples Collected</string>
+    <string name="latest_level">Latest Battery Level</string>
+    <string name="latest_temp">Latest Temperature</string>
+    <string name="last_sample_time">Last Sample Time</string>
+    <string name="collector_running">Collector running in background</string>
+    <string name="collector_start_failed">Failed to start collector</string>
+    <string name="save_bdf">Save BDF File</string>
+    <string name="upload_to_server">Upload BDF to Server</string>
+    <string name="insufficient_data">Not enough samples yet. Keep collecting and try again.</string>
+    <string name="saved_file">Saved file</string>
+    <string name="upload_success">Upload finished. Processing is handled on the server.</string>
+    <string name="upload_failed">Upload failed</string>
+    <string name="open_settings">Server Settings</string>
+    <string name="server_settings_title">Server Settings</string>
+    <string name="server_host">Server Host</string>
+    <string name="server_port">Server Port</string>
+    <string name="save_settings">Save Settings</string>
+    <string name="settings_saved">Settings saved</string>
+    <string name="default_server_host">192.168.1.36</string>
+    <string name="default_server_port">8000</string>
+    <string name="service_notification_title">Battery Collector</string>
+    <string name="service_notification_text">Collecting battery samples in background</string>
+    <string name="unknown">Unknown</string>
+</resources>

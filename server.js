@@ -115,10 +115,13 @@ app.post('/api/analyze', upload.single('batteryFile'), async (req, res) => {
   const eol = parseNumber(req.body.eol, 70);
   const svrDays = parseNumber(req.body.svrDays, 30);
   const originalName = safeFilename(req.file.originalname || 'uploaded.bdf.csv');
-  const inputPath = path.join(jobDir, originalName.endsWith('.csv') ? originalName : `${originalName}.csv`);
+  const normalizedUploadName = originalName.endsWith('.csv') ? originalName : `${originalName}.csv`;
+  const archivedUploadPath = path.join(UPLOAD_DIR, `${jobId}_${normalizedUploadName}`);
+  const inputPath = path.join(jobDir, normalizedUploadName);
 
   try {
     await fsp.mkdir(plotsDir, { recursive: true });
+    await fsp.copyFile(req.file.path, archivedUploadPath);
     await fsp.rename(req.file.path, inputPath);
 
     await runPython(ANALYZER_SCRIPT, [
