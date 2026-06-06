@@ -265,10 +265,16 @@ app.get('*', (_req, res) => {
 async function start() {
   await ensureDirectories();
 
-  app.listen(HTTP_PORT, () => {
-    log('INFO', `HTTP server running at http://localhost:${HTTP_PORT}`);
+  const shouldStartHttp = !(ENABLE_SSL && HTTP_PORT === HTTPS_PORT);
+  if (shouldStartHttp) {
+    app.listen(HTTP_PORT, () => {
+      log('INFO', `HTTP server running at http://localhost:${HTTP_PORT}`);
+      log('INFO', `Serving static files from ${WWW_DIR}`);
+    });
+  } else {
+    log('WARN', `HTTP listener disabled because PORT (${HTTP_PORT}) equals SSL_PORT (${HTTPS_PORT}) with SSL enabled.`);
     log('INFO', `Serving static files from ${WWW_DIR}`);
-  });
+  }
 
   if (ENABLE_SSL && fs.existsSync(SSL_KEY) && fs.existsSync(SSL_CERT)) {
     const credentials = {
