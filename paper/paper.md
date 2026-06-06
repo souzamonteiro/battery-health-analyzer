@@ -156,7 +156,7 @@ By default, `end_soh > 70%` so that models can be tested before reaching EOL, bu
 
 # AI usage disclosure
 
-We used artificial intelligence (**DeepSeek-V3** and **GPT-5.3-Codex**) to create the project prototypes, and these prototypes are preserved for study and reference in the *prototypes* folder in the GitHub repository. In addition to these prototypes, the Android app was entirely built using AI (**GPT-5.3-Codex**). No part of this paper's manuscript, however, was written using AI; it was constructed entirely by the researchers.
+We used artificial intelligence (**DeepSeek-V3** and **GPT-5.3-Codex**) to create the project prototypes, and these prototypes are preserved for study and reference in the *prototypes* folder in the GitHub repository. In addition to these prototypes, the Android app was created using AI assistance (**GPT-5.3-Codex**). No part of this paper's manuscript, however, was written using AI; it was constructed entirely by the researchers.
 
 # Acknowledgements
 
