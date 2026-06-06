@@ -22,8 +22,10 @@ const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
 const ANALYZER_SCRIPT = path.join(ROOT, 'battery_bdf_analyzer_console.py');
 const GENERATOR_SCRIPT = path.join(ROOT, 'generate_test_bdf_data.py');
 
-const HTTP_PORT = Number(process.env.PORT || 8000);
-const HTTPS_PORT = Number(process.env.SSL_PORT || 8443);
+//const HTTP_PORT = Number(process.env.PORT || 8000);
+//const HTTPS_PORT = Number(process.env.SSL_PORT || 8443);
+const HTTP_PORT = Number(process.env.PORT || 9095);
+const HTTPS_PORT = Number(process.env.SSL_PORT || 9543);
 const ENABLE_SSL = process.env.ENABLE_SSL === 'true';
 const SSL_KEY = process.env.SSL_KEY || path.join(ROOT, 'localhost-key.pem');
 const SSL_CERT = process.env.SSL_CERT || path.join(ROOT, 'localhost.pem');
