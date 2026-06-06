@@ -27,6 +27,7 @@ const GENERATOR_SCRIPT = path.join(ROOT, 'generate_test_bdf_data.py');
 const HTTP_PORT = Number(process.env.PORT || 9095);
 const HTTPS_PORT = Number(process.env.SSL_PORT || 9543);
 const ENABLE_SSL = process.env.ENABLE_SSL !== 'false';
+const HTTPS_ONLY = process.env.HTTPS_ONLY === 'true';
 const SSL_KEY = process.env.SSL_KEY || path.join(ROOT, 'localhost-key.pem');
 const SSL_CERT = process.env.SSL_CERT || path.join(ROOT, 'localhost.pem');
 
@@ -97,9 +98,15 @@ app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (_req, res) => {
+  const mode = HTTPS_ONLY ? 'https-only' : (ENABLE_SSL ? 'http+https' : 'http-only');
   res.json({
     status: 'ok',
     service: 'battery-health-analyzer-api',
+    mode,
+    sslEnabled: ENABLE_SSL,
+    httpsOnly: HTTPS_ONLY,
+    httpPort: HTTP_PORT,
+    httpsPort: HTTPS_PORT,
     timestamp: now(),
   });
 });
@@ -265,14 +272,22 @@ app.get('*', (_req, res) => {
 async function start() {
   await ensureDirectories();
 
-  const shouldStartHttp = !(ENABLE_SSL && HTTP_PORT === HTTPS_PORT);
+  if (HTTPS_ONLY && !ENABLE_SSL) {
+    throw new Error('HTTPS_ONLY=true requires ENABLE_SSL=true.');
+  }
+
+  const shouldStartHttp = !HTTPS_ONLY && !(ENABLE_SSL && HTTP_PORT === HTTPS_PORT);
   if (shouldStartHttp) {
     app.listen(HTTP_PORT, () => {
       log('INFO', `HTTP server running at http://localhost:${HTTP_PORT}`);
       log('INFO', `Serving static files from ${WWW_DIR}`);
     });
   } else {
-    log('WARN', `HTTP listener disabled because PORT (${HTTP_PORT}) equals SSL_PORT (${HTTPS_PORT}) with SSL enabled.`);
+    if (HTTPS_ONLY) {
+      log('INFO', 'HTTP listener disabled because HTTPS_ONLY=true.');
+    } else {
+      log('WARN', `HTTP listener disabled because PORT (${HTTP_PORT}) equals SSL_PORT (${HTTPS_PORT}) with SSL enabled.`);
+    }
     log('INFO', `Serving static files from ${WWW_DIR}`);
   }
 

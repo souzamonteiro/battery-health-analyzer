@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-    </domain-config>
+    <cloud-backup>
+        <include domain="database" path="battery_database" />
+        <include domain="sharedpref" path="battery_analyzer_prefs" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" path="battery_database" />
+        <include domain="sharedpref" path="battery_analyzer_prefs" />
+    </device-transfer>
 </data-extraction-rules>

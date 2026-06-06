@@ -113,6 +113,7 @@ Environment=NVM_DIR=$USER_HOME/.nvm
 Environment=PORT=$PORT_VALUE
 Environment=SSL_PORT=$SSL_PORT_VALUE
 Environment=ENABLE_SSL=true
+Environment=HTTPS_ONLY=true
 Environment=SSL_KEY=$PROJECT_DIR/localhost-key.pem
 Environment=SSL_CERT=$PROJECT_DIR/localhost.pem
 Environment=NODE_BIN=$NODE_BIN

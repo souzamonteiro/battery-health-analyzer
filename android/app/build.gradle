@@ -4,6 +4,26 @@ plugins {
     id 'org.jetbrains.kotlin.kapt'
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+def getSigningValue = { String key ->
+    def fromProps = keystoreProperties.getProperty(key)
+    if (fromProps != null && !fromProps.trim().isEmpty()) {
+        return fromProps
+    }
+    return System.getenv(key)
+}
+
+def releaseStoreFilePath = getSigningValue('STORE_FILE')
+def releaseStorePassword = getSigningValue('STORE_PASSWORD')
+def releaseKeyAlias = getSigningValue('KEY_ALIAS')
+def releaseKeyPassword = getSigningValue('KEY_PASSWORD')
+def hasReleaseSigning = releaseStoreFilePath && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
     namespace 'com.souzamonteiro.batteryanalyzer'
     compileSdk 34
@@ -27,10 +47,24 @@ android {
         kotlinCompilerExtensionVersion '1.5.8'
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseStoreFilePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 
