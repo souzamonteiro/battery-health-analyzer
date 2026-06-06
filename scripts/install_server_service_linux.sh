@@ -10,10 +10,11 @@ SERVER_WRAPPER="$SCRIPT_DIR/run_battery_web_service.sh"
 USER_HOME="$(getent passwd "$USER_NAME" | cut -d: -f6)"
 
 usage() {
-  echo "Usage: $0 [--port <port>]"
+  echo "Usage: $0 [--port <http_port>] [--ssl-port <https_port>]"
 }
 
-PORT_VALUE="${PORT:-8000}"
+PORT_VALUE="${PORT:-9095}"
+SSL_PORT_VALUE="${SSL_PORT:-9543}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --port)
@@ -23,6 +24,15 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       PORT_VALUE="$2"
+      shift 2
+      ;;
+    --ssl-port)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --ssl-port"
+        usage
+        exit 1
+      fi
+      SSL_PORT_VALUE="$2"
       shift 2
       ;;
     -h|--help)
@@ -36,6 +46,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$PORT_VALUE" == "$SSL_PORT_VALUE" ]]; then
+  echo "Invalid configuration: --port and --ssl-port cannot be the same value ($PORT_VALUE)."
+  exit 1
+fi
 
 if ! command -v systemctl >/dev/null 2>&1; then
   echo "systemd/systemctl was not found. This installer expects a systemd-based Linux distribution."
@@ -93,7 +108,11 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=$USER_NAME
+Environment=HOME=$USER_HOME
+Environment=NVM_DIR=$USER_HOME/.nvm
 Environment=PORT=$PORT_VALUE
+Environment=SSL_PORT=$SSL_PORT_VALUE
+Environment=ENABLE_SSL=true
 Environment=NODE_BIN=$NODE_BIN
 Environment=NPM_BIN=$NPM_BIN
 Environment=PATH=$SERVICE_PATH
@@ -110,7 +129,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now "$SERVICE_NAME"
 
 echo "Installed optional web service: $SERVICE_NAME"
-echo "Port: $PORT_VALUE"
+echo "HTTP Port:  $PORT_VALUE"
+echo "HTTPS Port: $SSL_PORT_VALUE"
 echo "Node: $NODE_BIN"
 echo "npm:  $NPM_BIN"
 echo "Status: systemctl status $SERVICE_NAME"
