@@ -26,7 +26,7 @@ const GENERATOR_SCRIPT = path.join(ROOT, 'generate_test_bdf_data.py');
 //const HTTPS_PORT = Number(process.env.SSL_PORT || 8443);
 const HTTP_PORT = Number(process.env.PORT || 9095);
 const HTTPS_PORT = Number(process.env.SSL_PORT || 9543);
-const ENABLE_SSL = process.env.ENABLE_SSL === 'true';
+const ENABLE_SSL = process.env.ENABLE_SSL !== 'false';
 const SSL_KEY = process.env.SSL_KEY || path.join(ROOT, 'localhost-key.pem');
 const SSL_CERT = process.env.SSL_CERT || path.join(ROOT, 'localhost.pem');
 
@@ -279,6 +279,8 @@ async function start() {
     https.createServer(credentials, app).listen(HTTPS_PORT, () => {
       log('INFO', `HTTPS server running at https://localhost:${HTTPS_PORT}`);
     });
+  } else if (ENABLE_SSL) {
+    log('WARN', `HTTPS requested on port ${HTTPS_PORT}, but SSL_KEY or SSL_CERT is missing.`);
   }
 }
 
