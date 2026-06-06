@@ -43,11 +43,14 @@ class ServerSettingsStore(context: Context) {
     companion object {
         private const val KEY_HOST = "host"
         private const val KEY_PORT = "port"
-        private const val DEFAULT_HOST = "192.168.1.36"
-        private const val DEFAULT_PORT = 8000
+        private const val DEFAULT_HOST = "https://maia.maiascript.com"
+        private const val DEFAULT_PORT = 9543
     }
 
     private fun migratePortIfNeeded(storedPort: Int): Int {
-        return if (storedPort == 8001) DEFAULT_PORT else storedPort
+        return when (storedPort) {
+            8000, 8001, 9095 -> DEFAULT_PORT
+            else -> storedPort
+        }
     }
 }

@@ -3,15 +3,18 @@ package com.souzamonteiro.batteryanalyzer.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -35,10 +38,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.souzamonteiro.batteryanalyzer.R
 import com.souzamonteiro.batteryanalyzer.network.AnalysisReport
 import com.souzamonteiro.batteryanalyzer.viewmodel.BatteryCollectorViewModel
 import com.souzamonteiro.batteryanalyzer.viewmodel.CollectorUiState
@@ -47,7 +52,8 @@ import com.souzamonteiro.batteryanalyzer.viewmodel.CollectorUiState
 fun CollectorScreen(
     viewModel: BatteryCollectorViewModel,
     state: CollectorUiState,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit
 ) {
     var eolInput by remember(state.eolThreshold) { mutableStateOf(state.eolThreshold) }
     var svrDaysInput by remember(state.svrDays) { mutableStateOf(state.svrDays) }
@@ -214,6 +220,10 @@ fun CollectorScreen(
                     OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
                         Text("Server Settings (${state.serverHost}:${state.serverPort})", maxLines = 2)
                     }
+
+                    OutlinedButton(onClick = onOpenAbout, modifier = Modifier.fillMaxWidth()) {
+                        Text("About")
+                    }
                 }
             }
         }
@@ -232,11 +242,73 @@ fun CollectorScreen(
 }
 
 @Composable
+fun AboutScreen(
+    onOpenGitHub: () -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF4F7FB))
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = Color.White) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Image(
+                    painter = painterResource(id = R.mipmap.ic_launcher),
+                    contentDescription = "App Icon",
+                    modifier = Modifier.size(88.dp)
+                )
+                Text("Battery Health Analyzer", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B2430))
+                Text(
+                    "Battery Health Analyzer collects battery telemetry locally, exports BDF-compatible snapshots, and runs server-side analysis to estimate battery health and remaining useful life.",
+                    color = Color(0xFF5A6778),
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text("Copyright © Roberto Luiz Souza Monteiro", color = Color(0xFF1B2430), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Authors: Roberto Luiz Souza Monteiro; Marcos Toranosuke Morita; Andréia Rita da Silva; Thiago Barros Murari; Marcos Batista Figueredo; Hernane Barros de Borges Pereira.",
+                    color = Color(0xFF5A6778),
+                    fontSize = 13.sp
+                )
+                Text("License: Apache-2.0", color = Color(0xFF5A6778), fontSize = 13.sp)
+
+                Button(
+                    onClick = onOpenGitHub,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A6CF6)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Open GitHub Repository", color = Color.White)
+                }
+
+                Text(
+                    "https://github.com/souzamonteiro/battery-health-analyzer.git",
+                    color = Color(0xFF1D3C76),
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text("Back")
+        }
+    }
+}
+
+@Composable
 private fun HeroCard() {
     Surface(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)), color = Color(0xFF2A6CF6), shape = RoundedCornerShape(18.dp)) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Battery Health Analyzer", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("The app continuously saves battery data locally and sends the current snapshot to the server, just like the web interface.", color = Color.White, fontSize = 14.sp)
+            Text("The app continuously saves the device's battery status and sends it to the server for analysis and prediction, with the user's consent.", color = Color.White, fontSize = 14.sp)
         }
     }
 }

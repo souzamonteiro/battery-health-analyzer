@@ -88,7 +88,7 @@ class BatteryCollectorViewModel(
     }
 
     fun saveServerSettings(host: String, portText: String) {
-        val port = portText.toIntOrNull() ?: 8000
+        val port = portText.toIntOrNull() ?: 9543
         settingsStore.save(host, port)
         _uiState.value = _uiState.value.copy(statusMessage = "Settings saved")
     }

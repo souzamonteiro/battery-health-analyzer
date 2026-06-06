@@ -1,6 +1,7 @@
 package com.souzamonteiro.batteryanalyzer.ui
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -25,6 +26,7 @@ import com.souzamonteiro.batteryanalyzer.viewmodel.BatteryCollectorViewModelFact
 
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: BatteryCollectorViewModel
+    private val githubUrl = "https://github.com/souzamonteiro/battery-health-analyzer.git"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +47,7 @@ class MainActivity : ComponentActivity() {
                     color = Color(0xFFF4F7FB)
                 ) {
                     var showSettings by remember { mutableStateOf(false) }
+                    var showAbout by remember { mutableStateOf(false) }
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
                     Scaffold(
@@ -58,17 +61,28 @@ class MainActivity : ComponentActivity() {
                                 onSave = { host, port -> viewModel.saveServerSettings(host, port) },
                                 onBack = { showSettings = false }
                             )
+                        } else if (showAbout) {
+                            AboutScreen(
+                                onOpenGitHub = { openGitHub() },
+                                onBack = { showAbout = false }
+                            )
                         } else {
                             CollectorScreen(
                                 viewModel = viewModel,
                                 state = state,
-                                onOpenSettings = { showSettings = true }
+                                onOpenSettings = { showSettings = true },
+                                onOpenAbout = { showAbout = true }
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun openGitHub() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
+        startActivity(intent)
     }
 
     private fun startBatteryCollectorService() {

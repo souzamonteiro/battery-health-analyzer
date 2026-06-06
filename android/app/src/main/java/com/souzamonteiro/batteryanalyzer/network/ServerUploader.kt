@@ -33,7 +33,7 @@ object ServerUploader {
             val parsed = parseHostInput(normalizedHost)
             val hosts = when {
                 parsed.host.equals("localhost", ignoreCase = true) -> listOf("localhost", "10.0.2.2", "127.0.0.1")
-                parsed.host.isBlank() -> listOf("192.168.1.36")
+                parsed.host.isBlank() -> listOf("maia.maiascript.com")
                 else -> listOf(parsed.host)
             }
             val scheme = parsed.scheme
@@ -166,7 +166,7 @@ object ServerUploader {
     private data class ParsedHost(val scheme: String, val host: String, val port: Int?)
 
     private fun parseHostInput(raw: String): ParsedHost {
-        if (raw.isBlank()) return ParsedHost("http", "192.168.1.36", null)
+        if (raw.isBlank()) return ParsedHost("https", "maia.maiascript.com", null)
 
         return if (raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true)) {
             val uri = URI(raw)
