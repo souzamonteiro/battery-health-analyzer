@@ -1,5 +1,6 @@
 package com.souzamonteiro.batteryanalyzer.network
 
+import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -84,6 +85,7 @@ object ServerUploader {
         connection.outputStream.use { output ->
             writeField(output, boundary, "eol", eol.toString())
             writeField(output, boundary, "svrDays", svrDays.toString())
+            writeField(output, boundary, "deviceMetadata", buildDeviceMetadataJson())
             output.write("--$boundary\r\n".toByteArray())
             output.write("Content-Disposition: form-data; name=\"batteryFile\"; filename=\"${file.name}\"\r\n".toByteArray())
             output.write("Content-Type: text/csv\r\n\r\n".toByteArray())
@@ -178,6 +180,24 @@ object ServerUploader {
         } else {
             ParsedHost("http", raw, null)
         }
+    }
+
+    private fun buildDeviceMetadataJson(): String {
+        val metadata = JSONObject()
+        metadata.put("source", "android")
+        metadata.put("platform", "mobile")
+        metadata.put("osName", "Android")
+        metadata.put("osVersion", Build.VERSION.RELEASE ?: "unknown")
+        metadata.put("osApiLevel", Build.VERSION.SDK_INT)
+        metadata.put("manufacturer", Build.MANUFACTURER ?: "unknown")
+        metadata.put("brand", Build.BRAND ?: "unknown")
+        metadata.put("model", Build.MODEL ?: "unknown")
+        metadata.put("device", Build.DEVICE ?: "unknown")
+        metadata.put("product", Build.PRODUCT ?: "unknown")
+        metadata.put("hardware", Build.HARDWARE ?: "unknown")
+        metadata.put("fingerprint", Build.FINGERPRINT ?: "unknown")
+        metadata.put("capturedAt", System.currentTimeMillis())
+        return metadata.toString()
     }
 
     private fun insecureSslSocketFactory() = SSLContext.getInstance("TLS").apply {

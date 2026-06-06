@@ -86,6 +86,43 @@ function parseNumber(input, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function parseDeviceMetadata(rawMetadata, req) {
+  let parsed = {};
+  if (typeof rawMetadata === 'string' && rawMetadata.trim().length > 0) {
+    try {
+      parsed = JSON.parse(rawMetadata);
+    } catch (_error) {
+      parsed = { raw: rawMetadata };
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    parsed = {};
+  }
+
+  const transport = req.secure ? 'https' : 'http';
+  return {
+    source: parsed.source || 'unknown',
+    platform: parsed.platform || 'unknown',
+    osName: parsed.osName || 'unknown',
+    osVersion: parsed.osVersion || 'unknown',
+    manufacturer: parsed.manufacturer || parsed.brand || 'unknown',
+    model: parsed.model || parsed.device || 'unknown',
+    brand: parsed.brand || 'unknown',
+    device: parsed.device || 'unknown',
+    product: parsed.product || 'unknown',
+    hardware: parsed.hardware || 'unknown',
+    fingerprint: parsed.fingerprint || 'unknown',
+    userAgent: req.get('user-agent') || 'unknown',
+    requestIp: req.ip || req.socket?.remoteAddress || 'unknown',
+    requestHost: req.get('host') || 'unknown',
+    requestProtocol: transport,
+    capturedAt: parsed.capturedAt || Date.now(),
+    receivedAt: now(),
+    extras: parsed,
+  };
+}
+
 const upload = multer({
   dest: UPLOAD_DIR,
   limits: {
@@ -127,11 +164,14 @@ app.post('/api/analyze', upload.single('batteryFile'), async (req, res) => {
   const normalizedUploadName = originalName.endsWith('.csv') ? originalName : `${originalName}.csv`;
   const archivedUploadPath = path.join(UPLOAD_DIR, `${jobId}_${normalizedUploadName}`);
   const inputPath = path.join(jobDir, normalizedUploadName);
+  const metadataPath = path.join(jobDir, `${normalizedUploadName}.device.json`);
+  const deviceMetadata = parseDeviceMetadata(req.body.deviceMetadata, req);
 
   try {
     await fsp.mkdir(plotsDir, { recursive: true });
     await fsp.copyFile(req.file.path, archivedUploadPath);
     await fsp.rename(req.file.path, inputPath);
+    await fsp.writeFile(metadataPath, JSON.stringify(deviceMetadata, null, 2), 'utf-8');
 
     await runPython(ANALYZER_SCRIPT, [
       inputPath,
@@ -146,7 +186,7 @@ app.post('/api/analyze', upload.single('batteryFile'), async (req, res) => {
       String(svrDays),
     ]);
 
-    const jsonFiles = (await fsp.readdir(jobDir)).filter((name) => name.endsWith('.json'));
+    const jsonFiles = (await fsp.readdir(jobDir)).filter((name) => name.endsWith('.json') && !name.endsWith('.device.json'));
     if (jsonFiles.length === 0) {
       throw new Error('Analyzer did not produce a JSON report.');
     }
@@ -169,7 +209,9 @@ app.post('/api/analyze', upload.single('batteryFile'), async (req, res) => {
       report,
       plots,
       reportUrl: `/api/analysis/${jobId}/report`,
+      metadataUrl: `/api/analysis/${jobId}/metadata`,
       uploadedFile: path.basename(inputPath),
+      metadataFile: path.basename(metadataPath),
     });
   } catch (error) {
     try {
@@ -181,12 +223,30 @@ app.post('/api/analyze', upload.single('batteryFile'), async (req, res) => {
   }
 });
 
+app.get('/api/analysis/:jobId/metadata', async (req, res) => {
+  const { jobId } = req.params;
+  const jobDir = path.join(ANALYSIS_DIR, jobId);
+
+  try {
+    const metadataFiles = (await fsp.readdir(jobDir)).filter((name) => name.endsWith('.device.json'));
+    if (metadataFiles.length === 0) {
+      res.status(404).json({ error: 'Metadata not found.' });
+      return;
+    }
+
+    const metadata = JSON.parse(await fsp.readFile(path.join(jobDir, metadataFiles[0]), 'utf-8'));
+    res.json({ jobId, metadata });
+  } catch (_error) {
+    res.status(404).json({ error: 'Metadata not found.' });
+  }
+});
+
 app.get('/api/analysis/:jobId/report', async (req, res) => {
   const { jobId } = req.params;
   const jobDir = path.join(ANALYSIS_DIR, jobId);
 
   try {
-    const jsonFiles = (await fsp.readdir(jobDir)).filter((name) => name.endsWith('.json'));
+    const jsonFiles = (await fsp.readdir(jobDir)).filter((name) => name.endsWith('.json') && !name.endsWith('.device.json'));
     if (jsonFiles.length === 0) {
       res.status(404).json({ error: 'Report not found.' });
       return;

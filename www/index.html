@@ -641,6 +641,32 @@
         };
       }
 
+      function collectWebDeviceMetadata() {
+        const uaData = navigator.userAgentData || null;
+        return {
+          source: 'web',
+          platform: 'web',
+          osName: navigator.platform || 'unknown',
+          osVersion: 'unknown',
+          manufacturer: 'unknown',
+          model: 'unknown',
+          brand: 'unknown',
+          device: 'browser',
+          product: 'browser',
+          hardware: 'unknown',
+          fingerprint: 'unknown',
+          browserName: navigator.appName || 'unknown',
+          browserVersion: navigator.appVersion || 'unknown',
+          userAgent: navigator.userAgent || 'unknown',
+          language: navigator.language || 'unknown',
+          languages: Array.isArray(navigator.languages) ? navigator.languages : [],
+          vendor: navigator.vendor || 'unknown',
+          userAgentBrands: uaData && Array.isArray(uaData.brands) ? uaData.brands : [],
+          mobile: uaData && typeof uaData.mobile === 'boolean' ? uaData.mobile : /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || ''),
+          capturedAt: Date.now(),
+        };
+      }
+
       async function requestDatasetGeneration(payload) {
         const response = await fetch('/api/generate-dataset', {
           method: 'POST',
@@ -667,6 +693,7 @@
         formData.append('batteryFile', file);
         formData.append('eol', document.getElementById('eol').value);
         formData.append('svrDays', document.getElementById('svrDays').value);
+        formData.append('deviceMetadata', JSON.stringify(collectWebDeviceMetadata()));
 
         setStatus(analyzeStatus, 'ok', statusMessage);
 
