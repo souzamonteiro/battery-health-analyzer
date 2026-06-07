@@ -21,6 +21,7 @@ import java.util.Locale
 
 data class CollectorUiState(
     val sampleCount: Int = 0,
+    val firstTimestamp: Long? = null,
     val latestLevel: Int? = null,
     val latestTemp: Int? = null,
     val latestTimestamp: Long? = null,
@@ -59,6 +60,12 @@ class BatteryCollectorViewModel(
         viewModelScope.launch {
             repository.getSampleCount().collect { count ->
                 _uiState.value = _uiState.value.copy(sampleCount = count)
+            }
+        }
+
+        viewModelScope.launch {
+            repository.getFirstSampleTimestamp().collect { first ->
+                _uiState.value = _uiState.value.copy(firstTimestamp = first)
             }
         }
 
@@ -194,6 +201,12 @@ class BatteryCollectorViewModel(
     fun formatTimestamp(ts: Long?): String {
         if (ts == null) return "Unknown"
         return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(ts))
+    }
+
+    fun estimateCollectionDays(firstTs: Long?, latestTs: Long?): Int? {
+        if (firstTs == null || latestTs == null || latestTs < firstTs) return null
+        val millisPerDay = 24L * 60L * 60L * 1000L
+        return ((latestTs - firstTs) / millisPerDay).toInt()
     }
 }
 

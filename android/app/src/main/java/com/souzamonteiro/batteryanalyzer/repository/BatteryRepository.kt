@@ -24,6 +24,8 @@ class BatteryRepository(private val context: Context) {
 
     fun getSampleCount(): Flow<Int> = dao.getSampleCount()
 
+    fun getFirstSampleTimestamp(): Flow<Long?> = dao.getFirstSampleTimestamp()
+
     fun getAverageLevel(): Flow<Double> = dao.getAverageLevel()
 
     suspend fun insertSample(sample: BatterySample) {

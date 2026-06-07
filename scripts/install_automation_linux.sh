@@ -127,8 +127,6 @@ fi
 sudo tee "$SERVICE_FILE" >/dev/null <<EOF
 [Unit]
 Description=Battery Health Analyzer logger
-After=network-online.target
-Wants=network-online.target
 
 [Service]
 Type=simple
@@ -136,7 +134,7 @@ User=$USER_NAME
 Environment=BATTERY_LOGGER_METRIC=$METRIC_MODE
 WorkingDirectory=$PROJECT_DIR
 ExecStart=$LOGGER_WRAPPER
-Restart=always
+Restart=on-failure
 RestartSec=30
 
 [Install]

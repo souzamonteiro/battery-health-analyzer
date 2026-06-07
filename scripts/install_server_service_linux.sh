@@ -102,8 +102,7 @@ chmod +x "$SERVER_WRAPPER"
 sudo tee "$SERVICE_FILE" >/dev/null <<EOF
 [Unit]
 Description=Battery Health Analyzer web service (Node.js)
-After=network-online.target
-Wants=network-online.target
+After=network.target
 
 [Service]
 Type=simple

@@ -58,6 +58,8 @@ fun CollectorScreen(
     var eolInput by remember(state.eolThreshold) { mutableStateOf(state.eolThreshold) }
     var svrDaysInput by remember(state.svrDays) { mutableStateOf(state.svrDays) }
     var consentAccepted by rememberSaveable { mutableStateOf(false) }
+    val trackedDays = viewModel.estimateCollectionDays(state.firstTimestamp, state.latestTimestamp)
+    val hasRecommendedHistory = (trackedDays ?: 0) >= 60
 
     Column(
         modifier = Modifier
@@ -75,12 +77,17 @@ fun CollectorScreen(
                 KeyValueRow("Samples collected", state.sampleCount.toString())
                 KeyValueRow("Latest battery level", state.latestLevel?.let { "$it%" } ?: "Unknown")
                 KeyValueRow("Latest temperature", state.latestTemp?.let { "${it / 10.0}°C" } ?: "Unknown")
+                KeyValueRow("First sample time", viewModel.formatTimestamp(state.firstTimestamp))
                 KeyValueRow("Last sample time", viewModel.formatTimestamp(state.latestTimestamp))
+                KeyValueRow("Collection window", trackedDays?.let { "$it days" } ?: "Unknown")
                 KeyValueRow("Live BDF snapshot", state.liveSnapshotPath)
                 Text(
-                    if (state.sampleCount < 100) "Data is still limited. More samples improve server-side prediction quality."
-                    else "Enough data collected for a stronger analysis run.",
-                    color = if (state.sampleCount < 100) Color(0xFFB26A00) else Color(0xFF0F9D58),
+                    if (!hasRecommendedHistory) {
+                        "Data history is still limited. For a reliable prediction, collect at least about 60 days (roughly 50 battery cycles). Before that, the model may estimate near-infinite degradation time and SOH close to the current battery charge."
+                    } else {
+                        "Collection history looks sufficient for a stronger analysis run (about $trackedDays days)."
+                    },
+                    color = if (!hasRecommendedHistory) Color(0xFFB26A00) else Color(0xFF0F9D58),
                     fontSize = 12.sp
                 )
             }
@@ -308,7 +315,7 @@ private fun HeroCard() {
     Surface(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)), color = Color(0xFF2A6CF6), shape = RoundedCornerShape(18.dp)) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Battery Health Analyzer", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("The app continuously saves the device's battery status and sends it to the server for analysis and prediction, with the user's consent.", color = Color.White, fontSize = 14.sp)
+            Text("The app continuously saves the device's battery status and sends it to the server for analysis and prediction, with the user's consent. Data from at least 50 battery cycles, approximately 60 days, are needed to obtain an accurate analysis.", color = Color.White, fontSize = 14.sp)
         }
     }
 }

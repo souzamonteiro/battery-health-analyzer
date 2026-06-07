@@ -45,6 +45,9 @@ interface BatterySampleDao {
     @Query("SELECT COUNT(*) FROM battery_samples")
     fun getSampleCount(): Flow<Int>
 
+    @Query("SELECT MIN(timestamp) FROM battery_samples")
+    fun getFirstSampleTimestamp(): Flow<Long?>
+
     @Query("DELETE FROM battery_samples WHERE timestamp < :cutoffTime")
     suspend fun deleteOldSamples(cutoffTime: Long)
 
