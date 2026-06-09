@@ -27,7 +27,8 @@ object ServerUploader {
         host: String,
         port: Int,
         eol: Double,
-        svrDays: Int
+        svrDays: Int,
+        telemetryDeviceId: String
     ): Result<AnalysisResponse> {
         return withContext(Dispatchers.IO) {
             val normalizedHost = host.trim()
@@ -43,7 +44,7 @@ object ServerUploader {
             var lastFailure: Throwable? = null
             for (candidateHost in hosts) {
                 val result = runCatching {
-                    uploadOnce(file, scheme, candidateHost, effectivePort, eol, svrDays)
+                    uploadOnce(file, scheme, candidateHost, effectivePort, eol, svrDays, telemetryDeviceId)
                 }
                 if (result.isSuccess) return@withContext result
 
@@ -64,7 +65,8 @@ object ServerUploader {
         host: String,
         port: Int,
         eol: Double,
-        svrDays: Int
+        svrDays: Int,
+        telemetryDeviceId: String
     ): AnalysisResponse {
         val boundary = "Boundary-${UUID.randomUUID()}"
         val baseUrl = "$scheme://$host:$port"
@@ -85,7 +87,7 @@ object ServerUploader {
         connection.outputStream.use { output ->
             writeField(output, boundary, "eol", eol.toString())
             writeField(output, boundary, "svrDays", svrDays.toString())
-            writeField(output, boundary, "deviceMetadata", buildDeviceMetadataJson())
+            writeField(output, boundary, "deviceMetadata", buildDeviceMetadataJson(telemetryDeviceId))
             output.write("--$boundary\r\n".toByteArray())
             output.write("Content-Disposition: form-data; name=\"batteryFile\"; filename=\"${file.name}\"\r\n".toByteArray())
             output.write("Content-Type: text/csv\r\n\r\n".toByteArray())
@@ -182,7 +184,7 @@ object ServerUploader {
         }
     }
 
-    private fun buildDeviceMetadataJson(): String {
+    private fun buildDeviceMetadataJson(telemetryDeviceId: String): String {
         val metadata = JSONObject()
         metadata.put("source", "android")
         metadata.put("platform", "mobile")
@@ -196,6 +198,7 @@ object ServerUploader {
         metadata.put("product", Build.PRODUCT ?: "unknown")
         metadata.put("hardware", Build.HARDWARE ?: "unknown")
         metadata.put("fingerprint", Build.FINGERPRINT ?: "unknown")
+        metadata.put("telemetryDeviceId", telemetryDeviceId)
         metadata.put("capturedAt", System.currentTimeMillis())
         return metadata.toString()
     }

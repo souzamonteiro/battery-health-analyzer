@@ -2,6 +2,8 @@
 
 Battery telemetry collection and analysis toolkit using the Battery Data Format (BDF).
 
+This project provides the tools for a larger project, [Open Mobile Battery Telemetry Dataset (OMBTD)](https://github.com/souzamonteiro/Open-Mobile-Battery-Telemetry-Dataset.git), an open collection of battery telemetry measurements gathered from real-world Android devices.
+
 This repository now uses the **BDF collector/analyzer stack**:
 
 - `battery_bdf_collector.py`: collects local battery telemetry and writes `.bdf.csv` files with BDF preferred-label headers.
@@ -50,9 +52,65 @@ Main REST endpoints:
 
 - `POST /api/analyze` (multipart field: `batteryFile`; optional: `eol`, `svrDays`)
 - `POST /api/generate-dataset` (JSON body with generator parameters)
+- `POST /api/export-ombtd` — export all jobs as OMBTD v1.0 dataset (4 CSVs)
+- `GET /api/ombtd/:fileName` — download an individual OMBTD CSV
+- `GET /api/analysis/:jobId/metadata`
 - `GET /api/analysis/:jobId/report`
 - `GET /api/analysis/:jobId/plots/:plotName`
 - `GET /api/datasets/:fileName`
+
+### Longitudinal device tracking (Android)
+
+The Android app now creates a persistent telemetry identifier on first run using
+`UUID.randomUUID()` and stores it locally in app SharedPreferences.
+
+Each analysis upload sends this value as `telemetryDeviceId` inside `deviceMetadata`.
+
+On the server, a public identifier is derived for dataset publication:
+
+`publicDeviceId = sha256(telemetryDeviceId + DATASET_SALT)` (truncated and prefixed as `dev_*`).
+
+- Public metadata (`*.device.json`) includes `publicDeviceId` and excludes sensitive network/client fields.
+- Private metadata (`*.device.private.json`) retains raw fields for internal operational debugging.
+
+Set a strong salt in production before publishing datasets:
+
+```bash
+export DATASET_SALT="replace-with-a-long-random-secret"
+```
+
+### OMBTD v1.0 Export
+
+Generate the four OMBTD CSV tables from all analysis jobs stored in `runtime/analyses/`:
+
+**CLI:**
+
+```bash
+export DATASET_SALT="your-secret-salt"
+python3 export_ombtd.py --out-dir ombtd_export
+```
+
+**REST (server must be running):**
+
+```bash
+curl -s -X POST https://localhost:9543/api/export-ombtd | jq .
+# then download individual CSVs:
+curl -O https://localhost:9543/api/ombtd/devices.csv
+curl -O https://localhost:9543/api/ombtd/sessions.csv
+curl -O https://localhost:9543/api/ombtd/telemetry.csv
+curl -O https://localhost:9543/api/ombtd/labels.csv
+```
+
+Output directory structure:
+
+```
+ombtd_export/
+  devices.csv     ← anonymized device metadata
+  sessions.csv    ← one row per analysis job
+  telemetry.csv   ← raw telemetry (relative timestamps only)
+  labels.csv      ← SOH/RUL derived metrics
+  OMBTD_VERSION   ← schema version marker
+```
 
 ### 1) Collect one sample
 

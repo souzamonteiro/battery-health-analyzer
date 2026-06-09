@@ -30,6 +30,10 @@ const ENABLE_SSL = process.env.ENABLE_SSL !== 'false';
 const HTTPS_ONLY = process.env.HTTPS_ONLY === 'true';
 const SSL_KEY = process.env.SSL_KEY || path.join(ROOT, 'localhost-key.pem');
 const SSL_CERT = process.env.SSL_CERT || path.join(ROOT, 'localhost.pem');
+const DATASET_SALT = process.env.DATASET_SALT || process.env.OMBTD_DATASET_SALT || 'change-this-dataset-salt';
+
+const METADATA_PUBLIC_SUFFIX = '.device.json';
+const METADATA_PRIVATE_SUFFIX = '.device.private.json';
 
 function now() {
   return new Date().toISOString();
@@ -86,6 +90,39 @@ function parseNumber(input, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function asNonEmptyString(value, fallback = 'unknown') {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function parseTelemetryDeviceId(value) {
+  if (typeof value !== 'string') return null;
+  const candidate = value.trim();
+  if (!candidate) return null;
+  if (!/^[a-zA-Z0-9-]{8,128}$/.test(candidate)) return null;
+  return candidate;
+}
+
+function buildPublicDeviceId(telemetryDeviceId) {
+  if (!telemetryDeviceId) return null;
+  const hash = crypto
+    .createHash('sha256')
+    .update(`${telemetryDeviceId}:${DATASET_SALT}`, 'utf8')
+    .digest('hex');
+  return `dev_${hash.slice(0, 12)}`;
+}
+
+function isPublicMetadataFile(name) {
+  return name.endsWith(METADATA_PUBLIC_SUFFIX);
+}
+
+function isPrivateMetadataFile(name) {
+  return name.endsWith(METADATA_PRIVATE_SUFFIX);
+}
+
+function isReportJsonFile(name) {
+  return name.endsWith('.json') && !isPublicMetadataFile(name) && !isPrivateMetadataFile(name);
+}
+
 function parseDeviceMetadata(rawMetadata, req) {
   let parsed = {};
   if (typeof rawMetadata === 'string' && rawMetadata.trim().length > 0) {
@@ -101,18 +138,23 @@ function parseDeviceMetadata(rawMetadata, req) {
   }
 
   const transport = req.secure ? 'https' : 'http';
+  const telemetryDeviceId = parseTelemetryDeviceId(parsed.telemetryDeviceId || parsed.deviceId || parsed.clientId);
+  const publicDeviceId = buildPublicDeviceId(telemetryDeviceId);
+
   return {
-    source: parsed.source || 'unknown',
-    platform: parsed.platform || 'unknown',
-    osName: parsed.osName || 'unknown',
-    osVersion: parsed.osVersion || 'unknown',
-    manufacturer: parsed.manufacturer || parsed.brand || 'unknown',
-    model: parsed.model || parsed.device || 'unknown',
-    brand: parsed.brand || 'unknown',
-    device: parsed.device || 'unknown',
-    product: parsed.product || 'unknown',
-    hardware: parsed.hardware || 'unknown',
-    fingerprint: parsed.fingerprint || 'unknown',
+    source: asNonEmptyString(parsed.source),
+    platform: asNonEmptyString(parsed.platform),
+    osName: asNonEmptyString(parsed.osName),
+    osVersion: asNonEmptyString(parsed.osVersion),
+    manufacturer: asNonEmptyString(parsed.manufacturer || parsed.brand),
+    model: asNonEmptyString(parsed.model || parsed.device),
+    brand: asNonEmptyString(parsed.brand),
+    device: asNonEmptyString(parsed.device),
+    product: asNonEmptyString(parsed.product),
+    hardware: asNonEmptyString(parsed.hardware),
+    fingerprint: asNonEmptyString(parsed.fingerprint),
+    telemetryDeviceId,
+    publicDeviceId,
     userAgent: req.get('user-agent') || 'unknown',
     requestIp: req.ip || req.socket?.remoteAddress || 'unknown',
     requestHost: req.get('host') || 'unknown',
@@ -120,6 +162,24 @@ function parseDeviceMetadata(rawMetadata, req) {
     capturedAt: parsed.capturedAt || Date.now(),
     receivedAt: now(),
     extras: parsed,
+  };
+}
+
+function toPublicDeviceMetadata(deviceMetadata) {
+  return {
+    source: deviceMetadata.source,
+    platform: deviceMetadata.platform,
+    osName: deviceMetadata.osName,
+    osVersion: deviceMetadata.osVersion,
+    manufacturer: deviceMetadata.manufacturer,
+    model: deviceMetadata.model,
+    brand: deviceMetadata.brand,
+    device: deviceMetadata.device,
+    product: deviceMetadata.product,
+    hardware: deviceMetadata.hardware,
+    capturedAt: deviceMetadata.capturedAt,
+    receivedAt: deviceMetadata.receivedAt,
+    publicDeviceId: deviceMetadata.publicDeviceId || null,
   };
 }
 
@@ -164,14 +224,17 @@ app.post('/api/analyze', upload.single('batteryFile'), async (req, res) => {
   const normalizedUploadName = originalName.endsWith('.csv') ? originalName : `${originalName}.csv`;
   const archivedUploadPath = path.join(UPLOAD_DIR, `${jobId}_${normalizedUploadName}`);
   const inputPath = path.join(jobDir, normalizedUploadName);
-  const metadataPath = path.join(jobDir, `${normalizedUploadName}.device.json`);
+  const publicMetadataPath = path.join(jobDir, `${normalizedUploadName}${METADATA_PUBLIC_SUFFIX}`);
+  const privateMetadataPath = path.join(jobDir, `${normalizedUploadName}${METADATA_PRIVATE_SUFFIX}`);
   const deviceMetadata = parseDeviceMetadata(req.body.deviceMetadata, req);
+  const publicDeviceMetadata = toPublicDeviceMetadata(deviceMetadata);
 
   try {
     await fsp.mkdir(plotsDir, { recursive: true });
     await fsp.copyFile(req.file.path, archivedUploadPath);
     await fsp.rename(req.file.path, inputPath);
-    await fsp.writeFile(metadataPath, JSON.stringify(deviceMetadata, null, 2), 'utf-8');
+    await fsp.writeFile(publicMetadataPath, JSON.stringify(publicDeviceMetadata, null, 2), 'utf-8');
+    await fsp.writeFile(privateMetadataPath, JSON.stringify(deviceMetadata, null, 2), 'utf-8');
 
     await runPython(ANALYZER_SCRIPT, [
       inputPath,
@@ -186,7 +249,7 @@ app.post('/api/analyze', upload.single('batteryFile'), async (req, res) => {
       String(svrDays),
     ]);
 
-    const jsonFiles = (await fsp.readdir(jobDir)).filter((name) => name.endsWith('.json') && !name.endsWith('.device.json'));
+    const jsonFiles = (await fsp.readdir(jobDir)).filter(isReportJsonFile);
     if (jsonFiles.length === 0) {
       throw new Error('Analyzer did not produce a JSON report.');
     }
@@ -211,7 +274,8 @@ app.post('/api/analyze', upload.single('batteryFile'), async (req, res) => {
       reportUrl: `/api/analysis/${jobId}/report`,
       metadataUrl: `/api/analysis/${jobId}/metadata`,
       uploadedFile: path.basename(inputPath),
-      metadataFile: path.basename(metadataPath),
+      metadataFile: path.basename(publicMetadataPath),
+      publicDeviceId: publicDeviceMetadata.publicDeviceId,
     });
   } catch (error) {
     try {
@@ -228,7 +292,7 @@ app.get('/api/analysis/:jobId/metadata', async (req, res) => {
   const jobDir = path.join(ANALYSIS_DIR, jobId);
 
   try {
-    const metadataFiles = (await fsp.readdir(jobDir)).filter((name) => name.endsWith('.device.json'));
+    const metadataFiles = (await fsp.readdir(jobDir)).filter(isPublicMetadataFile);
     if (metadataFiles.length === 0) {
       res.status(404).json({ error: 'Metadata not found.' });
       return;
@@ -246,7 +310,7 @@ app.get('/api/analysis/:jobId/report', async (req, res) => {
   const jobDir = path.join(ANALYSIS_DIR, jobId);
 
   try {
-    const jsonFiles = (await fsp.readdir(jobDir)).filter((name) => name.endsWith('.json') && !name.endsWith('.device.json'));
+    const jsonFiles = (await fsp.readdir(jobDir)).filter(isReportJsonFile);
     if (jsonFiles.length === 0) {
       res.status(404).json({ error: 'Report not found.' });
       return;
@@ -320,6 +384,51 @@ app.get('/api/datasets/:fileName', async (req, res) => {
     res.download(filePath, fileName);
   } catch (_error) {
     res.status(404).json({ error: 'Dataset not found.' });
+  }
+});
+
+const EXPORT_DIR = path.join(RUNTIME_DIR, 'ombtd_export');
+const OMBTD_EXPORTER_SCRIPT = path.join(ROOT, 'export_ombtd.py');
+
+app.post('/api/export-ombtd', async (_req, res) => {
+  try {
+    await fsp.mkdir(EXPORT_DIR, { recursive: true });
+
+    const salt = DATASET_SALT;
+    await runPython(OMBTD_EXPORTER_SCRIPT, [
+      '--analyses-dir', ANALYSIS_DIR,
+      '--out-dir', EXPORT_DIR,
+      '--salt', salt,
+    ]);
+
+    const files = await fsp.readdir(EXPORT_DIR);
+    const csvFiles = files.filter((f) => f.endsWith('.csv') || f === 'OMBTD_VERSION');
+
+    const manifest = csvFiles.map((f) => ({
+      name: f,
+      url: `/api/ombtd/${encodeURIComponent(f)}`,
+    }));
+
+    res.json({
+      status: 'ok',
+      exportDir: EXPORT_DIR,
+      schemaVersion: '1.0',
+      files: manifest,
+    });
+  } catch (error) {
+    res.status(500).json({ error: String(error.message || error) });
+  }
+});
+
+app.get('/api/ombtd/:fileName', async (req, res) => {
+  const fileName = path.basename(req.params.fileName);
+  const filePath = path.join(EXPORT_DIR, fileName);
+
+  try {
+    await fsp.access(filePath);
+    res.download(filePath, fileName);
+  } catch (_error) {
+    res.status(404).json({ error: 'OMBTD file not found.' });
   }
 });
 

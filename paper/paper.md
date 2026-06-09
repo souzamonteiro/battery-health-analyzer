@@ -37,7 +37,7 @@ authors:
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
     
 affiliations:
- - name: State University of Bahia, UBrazil
+ - name: State University of Bahia, Brazil
    index: 1
  - name: SENAI CIMATEC University
    index: 2
@@ -52,11 +52,11 @@ bibliography: paper.bib
 
 # Summary
 
-Maia Battery Health Analyzer is a toolkit for real-time data collection from mobile, Windows, Linux, and macOS device batteries, analysis and estimation of state of health (SOH), and prediction of remaining battery life, compatible with the Battery Data Format (BDF). The toolkit includes a program for real-time data capture, a command-line tool with automation capabilities for analyzing and diagnosing multiple BDF files, including graph generation, a graphical user interface, and a web service that allows battery data analysis from the internet. The tools are distributed under the Apache 2.0 license and can be obtained from GitHub.
+Maia Battery Health Analyzer is a toolkit for real-time data collection from mobile, Windows, Linux, and macOS device batteries, analysis and estimation of state-of-health (SOH), and prediction of remaining battery life, compatible with the Battery Data Format (BDF). The toolkit includes a program for real-time data capture, a command-line tool with automation capabilities for analyzing and diagnosing multiple BDF files, including graph generation, a graphical user interface, and a web service that allows battery data analysis from the internet. The tools are distributed under the Apache 2.0 license and can be obtained from GitHub.
 
 # Statement of need
 
-Despite the growing interest in and adoption of Battery Data Format (BDF) [@BatteryDataAlliance2025BDFGitHub] for storing data collected from various types of batteries, there are no kits that provide cross-platform, real-time data acquisition and real-time analysis of battery health and remaining lifespan for mobile devices, are easy to install and use by both researchers and end users of mobile devices, and offer an integrated web interface allowing online data analysis, as well as the generation of synthetic data for research and training of predictive models.
+Despite the growing interest in and adoption of Battery Data Format (BDF) [@BatteryDataAlliance2025] for storing data collected from various types of batteries, there are no kits that provide cross-platform, real-time data acquisition and real-time analysis of battery health and remaining lifespan for mobile devices, are easy to install and use by both researchers and end users of mobile devices, and offer an integrated web interface allowing online data analysis, as well as the generation of synthetic data for research and training of predictive models.
 
 Maia Battery Health Analyzer fills this gap by offering industry standardization [@Hassini2023LithiumIonBD], using the BDF format, two different analysis methods, linear regression and Support Vector Regression (SVR), with graph generation and human-readable results, generation of synthetic data in BDF format, and automation for data capture on Windows, Linux, and macOS mobile devices, in addition to allowing batch processing of BDF files.
 
@@ -72,7 +72,7 @@ The **Maia Battery Health Analyzer** toolkit has been of great importance for ba
 
 # Software architecture and functionality
 
-**Maia Battery Health Analyzer** consists of four Python applications ('battery_bdf_analyzer_console.py', 'battery_bdf_analyzer.py', 'battery_bdf_collector.py', 'generate_test_bdf_data.py') and one Node.js application ('server.js'). All data processing and analysis is performed by the Python applications, but they are not interdependent. The Node.js application, on the other hand, uses the programs 'battery_bdf_analyzer_console.py', for analysis and prediction, and 'generate_test_bdf_data.py' for creating synthetic battery data in BDF format [@BatteryDataAlliance2025BDFGitHub].
+**Maia Battery Health Analyzer** consists of four Python applications ('battery_bdf_analyzer_console.py', 'battery_bdf_analyzer.py', 'battery_bdf_collector.py', 'generate_test_bdf_data.py') and one Node.js application ('server.js'). All data processing and analysis is performed by the Python applications, but they are not interdependent. The Node.js application, on the other hand, uses the programs 'battery_bdf_analyzer_console.py', for analysis and prediction, and 'generate_test_bdf_data.py' for creating synthetic battery data in BDF format [@BatteryDataAlliance2025].
 
 ## Data collection
 
@@ -85,6 +85,7 @@ The data collection is performed locally using the `battery_bdf_collector.py` sc
 - **macOS**: `voltage` from `pmset -g batt` and estimated charge rate.
 
 For each sample we computes:
+
 - The elapsed wall time since collector start, `Test Time / s`.
 - The  POSIX timestamp, `Unix Time / s`.
 - The power rate, `Power / W = Voltage × Current`, with sign convention: charging → current ≥ 0, discharging → current ≤ 0.
@@ -106,11 +107,11 @@ There are two programs for estimating battery degradation:
   
 Both use the same algorithms described below.
  
- ### 1. Calculating the State‑of‑health (SOH)
+### 1. Calculating the State‑of‑health (SOH)
 
 If the BDF file contains the `Capacity / %` column the the SOH is just equals to that percentage directly. This is the **Primary method**.
 
-However, when capacity is omitted in the BDF file, the SOH is derived from cumulative absolute current throughput. This the **Fallback method** [@Yang2023BatterySO]. These calculations are described in the following formula:
+However, when capacity is omitted in the BDF file, the SOH is derived from cumulative absolute current throughput. This is the **Fallback method** [@Yang2023BatterySO]. These calculations are described in the following formula:
 
 $$
 \Delta t_i = t_i - t_{i-1}, \quad
@@ -120,11 +121,11 @@ $$
 
 The results are are clipped to $[0, 100]$. This method works if the BDF file contains `current` and `time`.
 
-### 2. Linear degradation model (RUL)
+### 2. Linear degradation model
 
 The **linear degradation model** fits to an ordinary least squares [@Vilsen2021BatterySM]: $\mathrm{SOH}(t) = a + bt$, where $t$ = `test_time_second`. The `degradation` slope is reported in % per day: $b_{\mathrm{day}} = b \cdot 86400$.
 
-The **remaining useful life** (RUL) to end‑of‑life threshold $\mathrm{SOH}_{\mathrm{eol}}$ and the default value is 70%:
+The **remaining useful life** (RUL) is used to calculate to end‑of‑life threshold $\mathrm{SOH}_{\mathrm{eol}}$ and the default value is 70%:
 
 $$
 t_{\mathrm{eol}} = \frac{\mathrm{SOH}_{\mathrm{eol}} - a}{b}, \quad
@@ -136,6 +137,7 @@ The special case occurs if $b \ge 0$ → infinite RUL (no degradation trend). So
 ### 3. Support‑vector regression (SVR) model
 
 The **Support‑vector Regression** [@Yang2024ARL; @Li2024ResearchOS] uses `sklearn.svm.SVR` Python library with RBF kernel ($C=10.0$, $\epsilon=0.01$). The features are:
+
 - `test_time_second`
 - `voltage_volt`
 - `current_ampere`

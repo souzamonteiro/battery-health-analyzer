@@ -156,13 +156,15 @@ class BatteryCollectorViewModel(
 
             val eol = _uiState.value.eolThreshold.toDoubleOrNull() ?: 70.0
             val svrDays = _uiState.value.svrDays.toIntOrNull() ?: 30
+            val telemetryDeviceId = settingsStore.getOrCreateTelemetryDeviceId()
 
             val result = ServerUploader.uploadBdf(
                 file = bdfFile,
                 host = _uiState.value.serverHost,
                 port = _uiState.value.serverPort,
                 eol = eol,
-                svrDays = svrDays
+                svrDays = svrDays,
+                telemetryDeviceId = telemetryDeviceId
             )
 
             _uiState.value = result.fold(

@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.UUID
 
 class ServerSettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("server_settings", Context.MODE_PRIVATE)
@@ -40,9 +41,21 @@ class ServerSettingsStore(context: Context) {
         portState.value = cleanPort
     }
 
+    fun getOrCreateTelemetryDeviceId(): String {
+        val existing = prefs.getString(KEY_TELEMETRY_DEVICE_ID, null)
+        if (!existing.isNullOrBlank()) {
+            return existing
+        }
+
+        val created = UUID.randomUUID().toString()
+        prefs.edit().putString(KEY_TELEMETRY_DEVICE_ID, created).apply()
+        return created
+    }
+
     companion object {
         private const val KEY_HOST = "host"
         private const val KEY_PORT = "port"
+        private const val KEY_TELEMETRY_DEVICE_ID = "telemetry_device_id"
         private const val DEFAULT_HOST = "https://maia.maiascript.com"
         private const val DEFAULT_PORT = 9543
     }
