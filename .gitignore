@@ -8,6 +8,7 @@ android/battery-release.jks
 android/keystore.properties
 android/*.jks
 android/*.keystore
+android/app-upload-key-public.pem
 
 runtime/analyses/
 runtime/generated/
